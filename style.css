@@ -1,0 +1,152 @@
+/**
+ * X-Ray Department Analytics & Reporting System
+ * Stylesheet (style.css)
+ * Compatible with Tailwind CSS v3 & Dark Mode
+ */
+
+/* 1. Base Typography & Variables */
+body {
+    font-family: 'Prompt', 'Sarabun', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+[x-cloak] { 
+    display: none !important; 
+}
+
+/* 2. Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.dark ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(14, 165, 233, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(14, 165, 233, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background: rgba(56, 189, 248, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(56, 189, 248, 0.6);
+}
+
+/* 3. Card & Box Styling */
+.card-box {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card-box:hover {
+    border-color: rgba(14, 165, 233, 0.4);
+}
+
+/* 4. Active Period Button Highlight */
+.period-btn.active-period {
+    background-color: #0891b2 !important; /* cyan-600 */
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 5. Custom Status Badges */
+.badge-wait-fast {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+.dark .badge-wait-fast {
+    background-color: rgba(6, 95, 70, 0.3);
+    color: #6ee7b7;
+    border-color: #047857;
+}
+
+.badge-wait-medium {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+.dark .badge-wait-medium {
+    background-color: rgba(146, 64, 14, 0.3);
+    color: #fcd34d;
+    border-color: #b45309;
+}
+
+.badge-wait-slow {
+    background-color: #ffe4e6;
+    color: #9f1239;
+    border: 1px solid #fecdd3;
+}
+.dark .badge-wait-slow {
+    background-color: rgba(159, 18, 57, 0.3);
+    color: #fda4af;
+    border-color: #be123c;
+}
+
+/* 6. Animations */
+@keyframes pulse-subtle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.animate-pulse-subtle {
+    animation: pulse-subtle 3s infinite ease-in-out;
+}
+
+/* 7. Modal Transitions */
+.modal-overlay {
+    transition: opacity 0.25s ease-out;
+}
+
+/* 8. Print Styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .print-only {
+        display: block !important;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+        font-size: 11pt !important;
+    }
+    
+    .card-box {
+        box-shadow: none !important;
+        border: 1px solid #d1d5db !important;
+        page-break-inside: avoid;
+    }
+
+    table {
+        page-break-inside: auto;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    thead {
+        display: table-header-group;
+    }
+
+    tfoot {
+        display: table-footer-group;
+    }
+}

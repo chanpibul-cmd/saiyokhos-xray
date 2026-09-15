@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบรายงานและวิเคราะห์ข้อมูลห้อง X-Ray - โรงพยาบาลไทรโยค (GitHub Pages)</title>
+    <title>ระบบรายงานและวิเคราะห์ข้อมูลห้อง X-Ray - โรงพยาบาลไทรโยค (Dashboard)</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,69 +49,10 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
 
-    <style>
-        body {
-            font-family: 'Prompt', 'Sarabun', sans-serif;
-        }
-        [x-cloak] { display: none !important; }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.05);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(14, 165, 233, 0.3);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(14, 165, 233, 0.6);
-        }
-        
-        /* Print Styles */
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-            .print-only {
-                display: block !important;
-            }
-            body {
-                background: white !important;
-                color: black !important;
-            }
-            .card-box {
-                box-shadow: none !important;
-                border: 1px solid #e5e7eb !important;
-            }
-        }
-    </style>
+    <!-- Custom Modular Stylesheet -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
-
-    <!-- Top Notice Banner for GitHub Pages -->
-    <div id="topDataSourceBanner" class="bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white text-xs py-1.5 px-4 no-print flex items-center justify-between">
-        <div class="flex items-center space-x-2 mx-auto sm:mx-0">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 text-white" id="badgeSourceType">
-                <i data-lucide="cloud" class="w-3 h-3 mr-1 inline"></i> GitHub Pages Edition
-            </span>
-            <span id="bannerStatusText" class="font-medium text-[11px] sm:text-xs">
-                กำลังเชื่อมต่อ Google Sheets ผ่าน Apps Script Web App...
-            </span>
-        </div>
-        <div class="hidden sm:flex items-center space-x-2 text-[11px]">
-            <button onclick="toggleDataSourceMode()" id="btnToggleMode" class="underline hover:text-cyan-200">
-                สลับโหมดตัวอย่าง (Demo)
-            </button>
-            <span>•</span>
-            <button onclick="openSettingsModal()" class="underline hover:text-cyan-200">
-                ตั้งค่าชีต
-            </button>
-        </div>
-    </div>
 
     <!-- Top Navigation Bar -->
     <header class="bg-white/80 dark:bg-slate-850 dark:bg-slate-800/90 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200 dark:border-slate-700 shadow-sm no-print">
@@ -124,7 +65,7 @@
                     </div>
                     <div>
                         <div class="flex items-center space-x-2">
-                            <h1 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight" id="headerHospitalName">
+                            <h1 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight" id="hospitalBrandName">
                                 โรงพยาบาลไทรโยค
                             </h1>
                             <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300">
@@ -132,7 +73,7 @@
                             </span>
                         </div>
                         <p class="text-xs text-slate-500 dark:text-slate-400">
-                            ระบบรายงานและวิเคราะห์ข้อมูลผู้ป่วยห้อง X-Ray (Google Sheets Cloud)
+                            ระบบรายงานและวิเคราะห์ข้อมูลผู้ป่วยห้อง X-Ray (Live Dashboard)
                         </p>
                     </div>
                 </div>
@@ -192,6 +133,12 @@
 
                 <!-- Export & Action Buttons -->
                 <div class="flex flex-wrap items-center gap-2">
+                    <!-- Google Sheet Sync Button -->
+                    <button onclick="openExportModal()" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium shadow-sm transition active:scale-95">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        <span>ส่งออก Google Sheet</span>
+                    </button>
+
                     <!-- Excel/CSV Download -->
                     <button onclick="exportExcelClientSide()" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium shadow-sm transition active:scale-95">
                         <i data-lucide="download" class="w-4 h-4"></i>
@@ -199,7 +146,7 @@
                     </button>
 
                     <!-- Print View -->
-                    <button onclick="window.print()" class="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium transition">
+                    <button onclick="window.print()" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium transition">
                         <i data-lucide="printer" class="w-4 h-4"></i>
                         <span class="hidden sm:inline">พิมพ์</span>
                     </button>
@@ -230,86 +177,106 @@
             </div>
         </div>
 
-        <!-- KPI Executive Summary Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            <!-- Card 1: Total Orders -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
+        <!-- KPI Executive Summary Cards (5 Cards) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Card 1: Performed Orders (Confirm = Y) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">จำนวนครั้งตรวจ X-Ray</span>
-                    <div class="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
-                        <i data-lucide="activity" class="w-5 h-5"></i>
+                    <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">ตรวจสำเร็จ (Confirm Y)</span>
+                    <div class="w-9 h-9 rounded-xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="mt-4 flex items-baseline justify-between">
+                <div class="mt-3 flex items-baseline justify-between">
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white" id="kpiTotalOrders">0</h2>
                     <span class="text-xs font-medium text-slate-500 dark:text-slate-400">ครั้ง</span>
                 </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span>OPD: <b class="text-slate-700 dark:text-slate-300" id="kpiOpdOrders">0</b></span>
+                <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span>สั่งทั้งหมด: <b class="text-slate-700 dark:text-slate-300" id="kpiTotalRequests">0</b></span>
                     <span class="text-slate-300 dark:text-slate-600">•</span>
-                    <span>IPD: <b class="text-slate-700 dark:text-slate-300" id="kpiIpdOrders">0</b></span>
+                    <span>ไม่ได้ตรวจ: <b class="text-rose-600 dark:text-rose-400 font-bold" id="kpiUnconfirmedOrders">0</b></span>
                 </div>
             </div>
 
-            <!-- Card 2: Total Patients -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
+            <!-- Card 2: Total Patients (Examined) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">จำนวนผู้รับบริการ</span>
-                    <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                        <i data-lucide="users" class="w-5 h-5"></i>
+                    <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">ผู้ป่วยที่รับการตรวจ</span>
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i data-lucide="users" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="mt-4 flex items-baseline justify-between">
+                <div class="mt-3 flex items-baseline justify-between">
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white" id="kpiTotalPatients">0</h2>
                     <span class="text-xs font-medium text-slate-500 dark:text-slate-400">คน</span>
                 </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                     <span>OPD: <b class="text-slate-700 dark:text-slate-300" id="kpiOpdPatients">0</b></span>
                     <span class="text-slate-300 dark:text-slate-600">•</span>
                     <span>IPD: <b class="text-slate-700 dark:text-slate-300" id="kpiIpdPatients">0</b></span>
                 </div>
             </div>
 
-            <!-- Card 3: Total Revenue -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
+            <!-- Card 3: Waiting Time KPI -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-teal-200/80 dark:border-teal-900/60 card-box relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-28 h-28 bg-teal-500/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold tracking-wider text-teal-700 dark:text-teal-300 uppercase">เวลารอคอยเฉลี่ย</span>
+                    <div class="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                        <i data-lucide="timer" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-baseline justify-between">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-teal-700 dark:text-teal-300" id="kpiAvgWaitMinutes">0</h2>
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">นาที</span>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-teal-100 dark:border-teal-900/40 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span>รอ ≤ 30 นาที: <b class="text-emerald-600 dark:text-emerald-400 font-bold" id="kpiWaitUnder30Rate">0%</b></span>
+                    <span class="text-slate-300 dark:text-slate-600">•</span>
+                    <span><b class="text-slate-700 dark:text-slate-300" id="kpiWaitUnder30Count">0</b> ราย</span>
+                </div>
+            </div>
+
+            <!-- Card 4: Total Revenue -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">มูลค่าบริการรวม</span>
-                    <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                        <i data-lucide="badge-dollar-sign" class="w-5 h-5"></i>
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <i data-lucide="badge-dollar-sign" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="mt-4 flex items-baseline justify-between">
+                <div class="mt-3 flex items-baseline justify-between">
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white" id="kpiTotalRevenue">฿0</h2>
                     <span class="text-xs font-medium text-slate-500 dark:text-slate-400">บาท</span>
                 </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                     <span>เฉลี่ย/คน: <b class="text-slate-700 dark:text-slate-300" id="kpiAvgPerPatient">฿0</b></span>
                     <span class="text-slate-300 dark:text-slate-600">•</span>
                     <span>เฉลี่ย/ครั้ง: <b class="text-slate-700 dark:text-slate-300" id="kpiAvgPerOrder">฿0</b></span>
                 </div>
             </div>
 
-            <!-- Card 4: Film Reading Status -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
+            <!-- Card 5: Film Reading Status -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 card-box relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-28 h-28 bg-purple-500/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">สถานะการอ่านผลฟิล์ม</span>
-                    <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                        <i data-lucide="file-check" class="w-5 h-5"></i>
+                    <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">สถานะอ่านฟิล์ม</span>
+                    <div class="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                        <i data-lucide="file-check" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="mt-4 flex items-baseline justify-between">
+                <div class="mt-3 flex items-baseline justify-between">
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white" id="kpiReadRate">0%</h2>
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">อ่านผลแล้ว</span>
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">อ่านแล้ว</span>
                 </div>
                 <!-- Progress Bar -->
                 <div class="mt-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                     <div id="kpiProgressBar" class="bg-purple-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
-                <div class="mt-3 pt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <div class="mt-2.5 pt-1.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                     <span>อ่านแล้ว: <b class="text-purple-600 dark:text-purple-400" id="kpiReadFilms">0</b></span>
                     <span class="text-slate-300 dark:text-slate-600">•</span>
                     <span>รออ่าน: <b class="text-amber-600 dark:text-amber-400" id="kpiUnreadFilms">0</b></span>
@@ -324,7 +291,7 @@
                     <i data-lucide="clock" class="w-4 h-4 text-cyan-600 dark:text-cyan-400"></i>
                     ภาระงานแยกตาม 3 เวรปฏิบัติงาน (เวรดึก 00:00-08:00 / เวรเช้า 08:00-16:00 / เวรบ่าย 16:00-24:00 น.)
                 </h3>
-                <span class="text-[11px] text-slate-500 dark:text-slate-400">สรุป 3 ผลัดการปฏิบัติงาน</span>
+                <span class="text-[11px] text-slate-500 dark:text-slate-400">โรงพยาบาลไทรโยค</span>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <!-- Card 1: Night Shift (เวรดึก 00:00-08:00) -->
@@ -459,7 +426,7 @@
                                 <i data-lucide="trending-up" class="w-4 h-4 text-cyan-600 dark:text-cyan-400"></i>
                                 แนวโน้มการรับบริการรายวัน (Daily Trend)
                             </h3>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">เปรียบเทียบยอดรวมและแยกตาม 3 เวรปฏิบัติงาน</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">เปรียบเทียบจำนวนครั้งตรวจและผู้รับบริการ</p>
                         </div>
                     </div>
                     <div class="h-72 w-full relative">
@@ -553,7 +520,7 @@
                     <div>
                         <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <i data-lucide="calendar-check" class="w-4 h-4 text-cyan-600"></i>
-                            ตารางสรุปสถิติงาน X-Ray แยกรายวัน (พร้อมแยก 3 เวร)
+                            ตารางสรุปสถิติงาน X-Ray แยกรายวัน
                         </h3>
                         <p class="text-xs text-slate-500 dark:text-slate-400">สรุปยอดรวมแต่ละวันในช่วงเวลาที่เลือก</p>
                     </div>
@@ -566,6 +533,7 @@
                                 <th scope="col" class="px-3 py-3 text-center">วันที่</th>
                                 <th scope="col" class="px-3 py-3 text-right">ตรวจ (ครั้ง)</th>
                                 <th scope="col" class="px-3 py-3 text-right">ผู้ป่วย (คน)</th>
+                                <th scope="col" class="px-3 py-3 text-center text-teal-700 dark:text-teal-300 bg-teal-50/50 dark:bg-teal-950/20">รอเฉลี่ย</th>
                                 <th scope="col" class="px-3 py-3 text-center text-purple-700 dark:text-purple-300 bg-purple-50/50 dark:bg-purple-950/20">เวรดึก (00-08)</th>
                                 <th scope="col" class="px-3 py-3 text-center text-amber-700 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/20">เวรเช้า (08-16)</th>
                                 <th scope="col" class="px-3 py-3 text-center text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/20">เวรบ่าย (16-24)</th>
@@ -578,7 +546,7 @@
                         </thead>
                         <tbody id="dailyTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60">
                             <tr>
-                                <td colspan="11" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+                                <td colspan="12" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
                             </tr>
                         </tbody>
                         <tfoot id="dailyTableFoot" class="bg-slate-50 dark:bg-slate-800/80 font-bold border-t-2 border-slate-200 dark:border-slate-600 text-xs sm:text-sm">
@@ -604,31 +572,33 @@
                     <!-- Year Picker -->
                     <div class="flex items-center space-x-2">
                         <label class="text-xs text-slate-500 font-medium">เลือกปี พ.ศ.:</label>
-                        <select id="monthlyYearSelect" onchange="loadMonthlyData()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            <option value="2026" selected>2569 (ปัจจุบัน)</option>
-                            <option value="2025">2568</option>
-                            <option value="2024">2567</option>
+                        <select id="monthlyYearSelect" onchange="loadMonthlyData()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <option value="2026" selected>พ.ศ. 2569 (2026)</option>
+                            <option value="2025">พ.ศ. 2568 (2025)</option>
+                            <option value="2024">พ.ศ. 2567 (2024)</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="h-64 w-full mb-6">
+                <!-- Monthly Bar Chart -->
+                <div class="h-72 w-full relative mb-6">
                     <canvas id="chartMonthlyTrend"></canvas>
                 </div>
 
+                <!-- Monthly Table -->
                 <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
                     <table class="w-full text-xs sm:text-sm text-left">
                         <thead class="text-xs uppercase bg-slate-100 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
                             <tr>
                                 <th scope="col" class="px-4 py-3 text-center">เดือน</th>
-                                <th scope="col" class="px-4 py-3 text-right">ตรวจ (ครั้ง)</th>
-                                <th scope="col" class="px-4 py-3 text-right">ผู้ป่วย (คน)</th>
-                                <th scope="col" class="px-4 py-3 text-right">OPD (ครั้ง)</th>
-                                <th scope="col" class="px-4 py-3 text-right">IPD (ครั้ง)</th>
+                                <th scope="col" class="px-4 py-3 text-right">จำนวนตรวจ (ครั้ง)</th>
+                                <th scope="col" class="px-4 py-3 text-right">จำนวนผู้ป่วย (คน)</th>
+                                <th scope="col" class="px-4 py-3 text-right">OPD</th>
+                                <th scope="col" class="px-4 py-3 text-right">IPD</th>
                                 <th scope="col" class="px-4 py-3 text-right">มูลค่ารวม (บาท)</th>
                                 <th scope="col" class="px-4 py-3 text-center">อ่านผลแล้ว</th>
                                 <th scope="col" class="px-4 py-3 text-center">รออ่านผล</th>
-                                <th scope="col" class="px-4 py-3 text-center">อัตราการอ่าน (%)</th>
+                                <th scope="col" class="px-4 py-3 text-center">ร้อยละอ่านผล</th>
                             </tr>
                         </thead>
                         <tbody id="monthlyTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -658,6 +628,13 @@
 
                     <!-- Filter Dropdowns -->
                     <div class="flex flex-wrap items-center gap-2">
+                        <!-- Exam Status Filter (Confirm = Y / N) -->
+                        <select id="filterExamStatus" onchange="loadPatients(1)" class="px-3 py-2 text-xs rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="all">สถานะตรวจ: ทั้งหมด</option>
+                            <option value="confirmed">✅ เฉพาะตรวจแล้ว (Confirm = Y)</option>
+                            <option value="not_confirmed">❌ เฉพาะไม่ได้ตรวจ / ยกเลิก</option>
+                        </select>
+
                         <!-- Shift Filter -->
                         <select id="filterShift" onchange="loadPatients(1)" class="px-3 py-2 text-xs rounded-xl border border-purple-300 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-200 font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500">
                             <option value="all">เวร: ทั้งหมด (3 ผลัด)</option>
@@ -689,13 +666,16 @@
                     </div>
                 </div>
 
-                <!-- Patient Master Table -->
+                <!-- Patient Master Table (17 Columns) -->
                 <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
                     <table class="w-full text-xs text-left">
                         <thead class="text-xs uppercase bg-slate-100 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
                             <tr>
                                 <th scope="col" class="px-3 py-3 text-center">ลำดับ</th>
-                                <th scope="col" class="px-3 py-3">วัน-เวลา</th>
+                                <th scope="col" class="px-3 py-3">สั่งตรวจ (Request)</th>
+                                <th scope="col" class="px-3 py-3">ตรวจจริง (Examined)</th>
+                                <th scope="col" class="px-3 py-3 text-center">เวลารอคอย</th>
+                                <th scope="col" class="px-3 py-3 text-center">สถานะตรวจ</th>
                                 <th scope="col" class="px-3 py-3 text-center">เวรตรวจ</th>
                                 <th scope="col" class="px-3 py-3">HN</th>
                                 <th scope="col" class="px-3 py-3">ชื่อ-นามสกุล</th>
@@ -712,16 +692,17 @@
                         </thead>
                         <tbody id="patientTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60">
                             <tr>
-                                <td colspan="14" class="px-4 py-8 text-center text-slate-400">กำลังโหลดรายชื่อผู้ป่วย...</td>
+                                <td colspan="17" class="px-4 py-8 text-center text-slate-400">กำลังโหลดรายชื่อผู้ป่วย...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Pagination Footer -->
-                <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                    <div id="patientPaginationInfo">แสดง 0 ถึง 0 จากทั้งหมด 0 รายการ</div>
-                    <div class="flex items-center space-x-1" id="patientPaginationControls"></div>
+                <div class="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+                    <div id="patientPaginationInfo">แสดง 0 ถึง 0 จาก 0 รายการ</div>
+                    <div class="flex items-center space-x-1" id="patientPaginationControls">
+                    </div>
                 </div>
             </div>
         </div>
@@ -729,95 +710,131 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white dark:bg-slate-850 border-t border-slate-200 dark:border-slate-800 py-4 px-4 text-center text-xs text-slate-400 no-print mt-auto">
-        <p>ระบบรายงานข้อมูลผู้ป่วยห้อง X-Ray • โรงพยาบาลไทรโยค • รองรับการทำงานแบบไร้เซิร์ฟเวอร์บน GitHub Pages ร่วมกับ Google Sheets</p>
+    <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 text-center text-xs text-slate-500 dark:text-slate-400 no-print">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div>
+                © 2569 กลุ่มงานรังสีวิทยา โรงพยาบาลไทรโยค | Live Analytics Dashboard (GitHub Pages / Standalone Ready)
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    ระบบพร้อมใช้งาน
+                </span>
+            </div>
+        </div>
     </footer>
 
     <!-- =================================================================== -->
-    <!-- MODAL: PATIENT DETAIL -->
+    <!-- MODAL 1: PATIENT DETAIL MODAL -->
     <!-- =================================================================== -->
-    <div id="modalPatientDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300 flex items-center justify-center font-bold">
-                        <i data-lucide="user" class="w-4 h-4"></i>
+    <div id="modalPatientDetail" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-600 flex items-center justify-center">
+                        <i data-lucide="user" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white" id="modalPtName">-</h3>
-                        <p class="text-[11px] text-slate-400">HN: <span id="modalPtHn" class="font-mono font-bold">-</span> | VN/AN: <span id="modalPtVn" class="font-mono">-</span></p>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modalPtName">-</h3>
+                        <p class="text-xs text-slate-500">รายละเอียดคำสั่งตรวจและผลอ่านฟิล์ม X-Ray</p>
                     </div>
                 </div>
-                <button onclick="closeModal('modalPatientDetail')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <button onclick="closeModal('modalPatientDetail')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <!-- Details Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50">
-                    <span class="text-slate-400 block text-[10px]">อายุ / เพศ</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200" id="modalPtAge">-</span>
+            <!-- Patient Demographics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-slate-50 dark:bg-slate-750 dark:bg-slate-700/40 rounded-xl text-xs">
+                <div>
+                    <span class="text-slate-400 block">HN:</span>
+                    <strong id="modalPtHn" class="text-slate-800 dark:text-slate-200 font-mono text-sm">-</strong>
                 </div>
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50">
-                    <span class="text-slate-400 block text-[10px]">ประเภทผู้ป่วย</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200" id="modalPtTypeBadge">-</span>
+                <div>
+                    <span class="text-slate-400 block">VN / AN:</span>
+                    <strong id="modalPtVn" class="text-slate-800 dark:text-slate-200 font-mono">-</strong>
                 </div>
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50">
-                    <span class="text-slate-400 block text-[10px]">เวรที่ตรวจ</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200" id="modalShiftName">-</span>
+                <div>
+                    <span class="text-slate-400 block">เพศ / อายุ:</span>
+                    <strong id="modalPtAge" class="text-slate-800 dark:text-slate-200">-</strong>
                 </div>
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50">
-                    <span class="text-slate-400 block text-[10px]">วัน-เวลาที่ส่งตรวจ</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200" id="modalRequestDateTime">-</span>
-                </div>
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50">
-                    <span class="text-slate-400 block text-[10px]">แผนก/จุดตรวจ</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200" id="modalDepartment">-</span>
-                </div>
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50">
-                    <span class="text-slate-400 block text-[10px]">แพทย์ผู้สั่งตรวจ</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200" id="modalDoctorName">-</span>
+                <div>
+                    <span class="text-slate-400 block">ประเภท:</span>
+                    <span id="modalPtTypeBadge" class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">-</span>
                 </div>
             </div>
 
-            <!-- X-Ray Procedure Info -->
-            <div class="p-3 rounded-xl border border-cyan-100 dark:border-cyan-900/50 bg-cyan-50/50 dark:bg-cyan-950/20 space-y-1 text-xs">
-                <div class="flex items-center justify-between">
-                    <span class="font-bold text-cyan-900 dark:text-cyan-200" id="modalXrayName">-</span>
-                    <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">฿<span id="modalPrice">0</span></span>
-                </div>
-                <div class="text-slate-500 dark:text-slate-400 text-[11px]">
-                    สิทธิการรักษา: <span id="modalPttypeName">-</span> (<span id="modalPttypeCategory">-</span>)
-                </div>
-            </div>
-
-            <!-- Diagnosis & Clinical Info -->
+            <!-- Service & Order Info -->
             <div class="space-y-2 text-xs">
-                <div>
-                    <span class="font-semibold text-slate-700 dark:text-slate-300 block mb-1">การวินิจฉัยโรค (ICD10 / Diagnosis):</span>
-                    <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 text-[11px]" id="modalPdx">-</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <span class="text-slate-400 block mb-1">รายการตรวจ X-Ray:</span>
+                        <div class="text-sm font-bold text-cyan-600 dark:text-cyan-400" id="modalXrayName">-</div>
+                        <div class="mt-1 text-slate-500">ค่าบริการ: <strong id="modalPrice" class="text-slate-800 dark:text-slate-200">-</strong> บาท</div>
+                    </div>
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <span class="text-slate-400 block mb-1">สิทธิการรักษา:</span>
+                        <div class="font-semibold text-slate-800 dark:text-slate-200" id="modalPttypeName">-</div>
+                        <div class="mt-1 text-slate-500">กลุ่มสิทธิ: <span id="modalPttypeCategory" class="font-medium">-</span></div>
+                    </div>
                 </div>
-                <div>
-                    <span class="font-semibold text-slate-700 dark:text-slate-300 block mb-1">ข้อบ่งชี้ทางคลินิก (Clinical Information):</span>
-                    <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 text-[11px]" id="modalDiagnosis">-</div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-750">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-slate-400 block font-medium">1. เวลาแพทย์สั่งตรวจ:</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">Request</span>
+                        </div>
+                        <div class="font-bold text-slate-800 dark:text-slate-200 text-sm" id="modalRequestDateTime">-</div>
+                        <div class="mt-1 text-slate-500">แผนก/ตึกที่ส่ง: <strong id="modalDepartment" class="text-slate-700 dark:text-slate-300">-</strong></div>
+                        <div class="mt-0.5 text-slate-500">แพทย์ผู้สั่ง: <strong id="modalDoctorName" class="text-slate-700 dark:text-slate-300">-</strong></div>
+                    </div>
+
+                    <div class="p-3 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/40 dark:bg-teal-950/20">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-teal-700 dark:text-teal-300 block font-medium">2. เวลาตรวจจริง & รอคอย:</span>
+                            <span id="modalConfirmBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800">ตรวจแล้ว</span>
+                        </div>
+                        <div class="font-bold text-slate-800 dark:text-slate-200 text-sm" id="modalExaminedDateTime">-</div>
+                        <div class="mt-1.5 flex items-center justify-between text-xs">
+                            <span class="text-slate-500">เวลารอคอย:</span>
+                            <span id="modalWaitTimeBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">-</span>
+                        </div>
+                        <div class="mt-1 text-slate-500 flex items-center justify-between text-xs">
+                            <span>เวรปฏิบัติงาน:</span>
+                            <span id="modalShiftBadge" class="font-medium">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnosis & Indication -->
+                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
+                    <span class="text-slate-400 block">การวินิจฉัยโรค / ข้อบ่งชี้ทางคลินิก:</span>
+                    <div class="font-medium text-slate-800 dark:text-slate-200" id="modalDiagnosis">-</div>
+                </div>
+
+                <!-- Film Reading Status & Report -->
+                <div class="p-3.5 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            ผลการอ่านฟิล์ม X-Ray
+                        </span>
+                        <span id="modalFilmStatusBadge" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                            -
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-600 dark:text-slate-400" id="modalReportDoctor">
+                        แพทย์ผู้อ่านผล: -
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-purple-100 dark:border-slate-700 font-mono text-xs whitespace-pre-wrap text-slate-700 dark:text-slate-300 min-h-[60px]" id="modalReportText">
+                        (ไม่มีบันทึกข้อความผลการอ่านฟิล์ม)
+                    </div>
                 </div>
             </div>
 
-            <!-- Film Reading Result -->
-            <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
-                <div class="flex items-center justify-between">
-                    <span class="font-bold text-slate-800 dark:text-slate-200">ผลการอ่านฟิล์ม X-Ray:</span>
-                    <span id="modalFilmStatusBadge" class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">-</span>
-                </div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400" id="modalReportDoctor">-</div>
-                <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 font-mono text-[11px] text-slate-800 dark:text-slate-200 whitespace-pre-wrap" id="modalReportText">
-                    (ยังไม่มีการบันทึกผลการอ่านฟิล์ม)
-                </div>
-            </div>
-
-            <div class="flex justify-end pt-2">
-                <button onclick="closeModal('modalPatientDetail')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium">
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                <button onclick="closeModal('modalPatientDetail')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-medium transition">
                     ปิดหน้าต่าง
                 </button>
             </div>
@@ -825,35 +842,152 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL: SETTINGS (GOOGLE APPS SCRIPT & DATA SOURCE) -->
+    <!-- MODAL 2: EXPORT TO GOOGLE SHEETS -->
     <!-- =================================================================== -->
-    <div id="modalSettings" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300 flex items-center justify-center font-bold">
-                        <i data-lucide="settings" class="w-4 h-4"></i>
+    <div id="modalExportSheet" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">ตั้งค่าการเชื่อมต่อ Google Sheets</h3>
-                        <p class="text-[11px] text-slate-400">สำหรับ GitHub Pages (Client-Side Cloud Connection)</p>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">ส่งออกข้อมูลไปยัง Google Sheets</h3>
+                        <p class="text-xs text-slate-500">เลือกวิธีการส่งออกข้อมูลที่คุณสะดวกที่สุด</p>
                     </div>
                 </div>
-                <button onclick="closeModal('modalSettings')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <button onclick="closeModal('modalExportSheet')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
+            <!-- Export Details Box -->
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-750 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 space-y-2 text-xs">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">ช่วงวันที่ส่งออก:</span>
+                    <strong class="text-slate-800 dark:text-slate-200" id="exportPeriodLabel">-</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">จำนวนรายการที่จะส่ง:</span>
+                    <strong class="text-cyan-600 dark:text-cyan-400 font-bold" id="exportTotalRowsLabel">-</strong>
+                </div>
+            </div>
+
+            <!-- Options Stack -->
+            <div class="space-y-3 text-xs">
+                <!-- Option 1: 1-Click Copy to Clipboard for Google Sheets -->
+                <div class="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                            <i data-lucide="clipboard-copy" class="w-4 h-4 text-emerald-600"></i>
+                            วิธีที่ 1: คัดลอกข้อมูลไปวางใน Google Sheet ทันที (แนะนำ)
+                        </span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-200 text-emerald-800">เร็วที่สุด</span>
+                    </div>
+                    <p class="text-slate-600 dark:text-slate-400">
+                        กดคัดลอกข้อมูล แล้วเปิด Google Sheet กด <b>Ctrl + V</b> วางได้ทันที ข้อมูลลงตารางครบทุกคอลัมน์
+                    </p>
+                    <div class="flex items-center gap-2 pt-1">
+                        <button id="btnCopyForSheet" onclick="copyForGoogleSheet()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1.5 shadow-sm transition active:scale-95">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span>คัดลอกข้อมูลทั้งหมด</span>
+                        </button>
+                        <a id="btnOpenSheetFromExport" href="https://docs.google.com/spreadsheets/d/1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k/edit" target="_blank" class="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 flex items-center gap-1.5 transition">
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            <span>เปิด Google Sheet</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Option 2: Automatic Sync via Apps Script Web App -->
+                <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 text-cyan-600"></i>
+                            วิธีที่ 2: บันทึกผ่าน Google Apps Script อัตโนมัติ
+                        </span>
+                        <span id="exportUrlStatusBadge" class="px-2 py-0.5 rounded-full text-[10px] font-semibold">-</span>
+                    </div>
+                    <p class="text-slate-500">
+                        ส่งข้อมูลตรงเข้า Google Sheet ผ่าน Web App URL (ต้องการการติดตั้ง Apps Script ครั้งแรก)
+                    </p>
+                    <div class="flex items-center justify-between pt-1">
+                        <button onclick="openSettingsModal()" class="text-xs text-cyan-600 hover:underline flex items-center gap-1">
+                            <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                            ตั้งค่า Web App URL
+                        </button>
+                        <button id="btnExecuteExport" onclick="executeGoogleSheetExport()" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-medium flex items-center gap-1.5 shadow-sm transition active:scale-95">
+                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                            <span>เริ่มส่งออก</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Status Feedback -->
+            <div id="exportStatusBox" class="hidden p-3.5 rounded-xl text-xs space-y-1">
+                <div class="font-bold flex items-center gap-1.5" id="exportStatusTitle">
+                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                    กำลังส่งข้อมูล...
+                </div>
+                <div class="text-slate-600 dark:text-slate-300" id="exportStatusMsg"></div>
+            </div>
+
+            <!-- Close Button -->
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                <button onclick="closeModal('modalExportSheet')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium">
+                    ปิด
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL 3: SETTINGS & GOOGLE APPS SCRIPT SETUP -->
+    <!-- =================================================================== -->
+    <div id="modalSettings" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">ตั้งค่าระบบและการเชื่อมต่อ</h3>
+                        <p class="text-xs text-slate-500">กำหนดแหล่งข้อมูลและ Google Apps Script Web App</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('modalSettings')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Setup Instructions Accordion -->
+            <div class="p-3.5 rounded-xl bg-cyan-50/60 dark:bg-cyan-950/30 border border-cyan-200/80 dark:border-cyan-800/60 text-xs space-y-2">
+                <div class="font-bold text-cyan-900 dark:text-cyan-300 flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    วิธีติดตั้ง Google Apps Script (ทำครั้งเดียว):
+                </div>
+                <ol class="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-400">
+                    <li>เปิด Google Sheet ของคุณ > ไปที่เมนู <b>ส่วนขยาย (Extensions)</b> > <b>Apps Script</b></li>
+                    <li>เปิดไฟล์ <a href="code.gs.txt" target="_blank" class="text-cyan-600 underline font-semibold">code.gs.txt</a> ในโฟลเดอร์นี้ แล้วคัดลอกโค้ดทั้งหมดไปวางใน Apps Script</li>
+                    <li>กด <b>บันทึก (Save)</b> > กดปุ่ม <b>ทำให้ใช้งานได้ (Deploy)</b> > <b>การทำให้ใช้งานได้ใหม่</b></li>
+                    <li>เลือกประเภทเป็น <b>เว็บแอป (Web app)</b> > กำหนดผู้มีสิทธิ์เข้าถึง: <b>ทุกคน (Anyone)</b></li>
+                    <li>คัดลอก <b>URL เว็บแอป (Web app URL)</b> มาวางในช่องด้านล่างนี้ แล้วกดบันทึก</li>
+                </ol>
+            </div>
+
             <!-- Settings Form -->
-            <form id="settingsForm" onsubmit="saveSettings(event)" class="space-y-3.5 text-xs">
-                <!-- Data Mode Selector -->
+            <form id="settingsForm" onsubmit="saveSettings(event)" class="space-y-3 text-xs">
                 <div>
                     <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         โหมดแหล่งข้อมูล (Data Source Mode)
                     </label>
-                    <select id="settingDataMode" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                        <option value="cloud">🌐 เชื่อมต่อสด: Google Apps Script Web App (ค่าเริ่มต้น)</option>
-                        <option value="demo">🧪 โหมดข้อมูลตัวอย่าง: ข้อมูลสมมติโรงพยาบาลไทรโยค (Demo)</option>
+                    <select id="settingDataMode" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <option value="auto">🌐 อัตโนมัติ (Auto-Detect: ใช้ API ในเครื่องก่อน ถ้าไม่มีใช้ Google Sheet)</option>
+                        <option value="cloud">☁️ Google Sheets Web App (สำหรับ GitHub Pages)</option>
+                        <option value="local">💻 เชื่อมต่อฐานข้อมูล HOSxP โดยตรง (api.php)</option>
+                        <option value="demo">🎮 โหมดจำลองข้อมูล (Demo / Offline Mode)</option>
                     </select>
                 </div>
 
@@ -861,16 +995,15 @@
                     <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Google Apps Script Web App URL <span class="text-red-500">*</span>
                     </label>
-                    <input type="url" id="settingAppsScriptUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                    <p class="text-[10px] text-slate-400 mt-1">URL จากการ Deploy เว็บแอป ใน Google Sheets (ต้องตั้งค่าผู้มีสิทธิ์เข้าถึงเป็น Anyone)</p>
+                    <input type="url" id="settingAppsScriptUrl" placeholder="https://script.google.com/macros/s/.../exec" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Google Spreadsheet ID
+                            Google Spreadsheet ID (ทางเลือก)
                         </label>
-                        <input type="text" id="settingSpreadsheetId" placeholder="1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <input type="text" id="settingSpreadsheetId" placeholder="1gE43E3aMPnqHNiv..." class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -878,17 +1011,6 @@
                         </label>
                         <input type="text" id="settingSheetName" placeholder="XRAY_DATA" value="XRAY_DATA" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                     </div>
-                </div>
-
-                <!-- Test Connection Button -->
-                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-700">
-                    <div>
-                        <span class="font-semibold text-slate-700 dark:text-slate-300 block">ทดสอบการเชื่อมต่อ Google Sheets</span>
-                        <span class="text-[11px] text-slate-400" id="testConnectionStatus">ยังไม่ได้ทดสอบ</span>
-                    </div>
-                    <button type="button" onclick="testConnection()" id="btnTestConn" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-sm transition">
-                        ทดสอบเดี๋ยวนี้
-                    </button>
                 </div>
 
                 <div id="settingsFeedback" class="hidden p-3 rounded-xl text-xs"></div>
@@ -905,1508 +1027,7 @@
         </div>
     </div>
 
-    <!-- =================================================================== -->
-    <!-- JAVASCRIPT APPLICATION LOGIC (STANDALONE / GITHUB PAGES) -->
-    <!-- =================================================================== -->
-    <script>
-        // Default Configuration
-        const DEFAULT_CONFIG = {
-            webAppUrl: 'https://script.google.com/macros/s/AKfycbxrvvRy6EOOLF_Qk0pRs_EcutL4-Fq5VeeZpttlCOhlCpSTzJ2QLZkVZwPBwhVpzq9r/exec',
-            spreadsheetId: '1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k',
-            sheetName: 'XRAY_DATA',
-            dataMode: 'cloud', // 'cloud' or 'demo'
-            hospitalName: 'โรงพยาบาลไทรโยค'
-        };
-
-        // State Management
-        let appConfig = Object.assign({}, DEFAULT_CONFIG);
-        let currentStartDate = getTodayStr();
-        let currentEndDate = getTodayStr();
-        let currentOverviewData = null;
-        let currentRawPatients = [];
-        let chartInstances = {};
-        let patientCurrentPage = 1;
-        let searchTimeout = null;
-        let fpStart = null;
-        let fpEnd = null;
-
-        // Helper: Date Format YYYY-MM-DD
-        function getTodayStr() {
-            const now = new Date();
-            const y = now.getFullYear();
-            const m = String(now.getMonth() + 1).padStart(2, '0');
-            const d = String(now.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        }
-
-        // Helper: Thai Date Format
-        function formatThaiDate(dateStr) {
-            if (!dateStr) return '-';
-            const parts = dateStr.split('-');
-            if (parts.length !== 3) return dateStr;
-            const y = parseInt(parts[0], 10) + 543;
-            const months = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-            const m = months[parseInt(parts[1], 10)] || parts[1];
-            const d = parseInt(parts[2], 10);
-            return `${d} ${m} ${y}`;
-        }
-
-        // Initialize App on DOM Load
-        document.addEventListener('DOMContentLoaded', () => {
-            loadStoredSettings();
-            lucide.createIcons();
-            initClock();
-            initDatePickers();
-            checkTheme();
-            updateDataSourceBanner();
-
-            // Search debounce
-            document.getElementById('patientSearchInput').addEventListener('input', () => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    loadPatients(1);
-                }, 300);
-            });
-
-            // Initial Data Load
-            loadDashboardData();
-        });
-
-        // 1. Storage & Settings Handlers
-        function loadStoredSettings() {
-            try {
-                const stored = localStorage.getItem('xray_github_settings');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    appConfig = Object.assign({}, DEFAULT_CONFIG, parsed);
-                }
-            } catch (e) {
-                console.warn('Could not read settings from localStorage', e);
-            }
-
-            document.getElementById('settingAppsScriptUrl').value = appConfig.webAppUrl || '';
-            document.getElementById('settingSpreadsheetId').value = appConfig.spreadsheetId || '';
-            document.getElementById('settingSheetName').value = appConfig.sheetName || 'XRAY_DATA';
-            document.getElementById('settingDataMode').value = appConfig.dataMode || 'cloud';
-
-            if (appConfig.spreadsheetId) {
-                document.getElementById('btnOpenSheet').href = `https://docs.google.com/spreadsheets/d/${appConfig.spreadsheetId}/edit`;
-            }
-        }
-
-        function saveSettings(e) {
-            e.preventDefault();
-            const feedback = document.getElementById('settingsFeedback');
-            feedback.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-emerald-100', 'text-emerald-800');
-
-            appConfig.webAppUrl = document.getElementById('settingAppsScriptUrl').value.trim();
-            appConfig.spreadsheetId = document.getElementById('settingSpreadsheetId').value.trim();
-            appConfig.sheetName = document.getElementById('settingSheetName').value.trim() || 'XRAY_DATA';
-            appConfig.dataMode = document.getElementById('settingDataMode').value;
-
-            try {
-                localStorage.setItem('xray_github_settings', JSON.stringify(appConfig));
-                feedback.classList.add('bg-emerald-100', 'text-emerald-800');
-                feedback.textContent = 'บันทึกการตั้งค่าเรียบร้อยแล้ว!';
-                updateDataSourceBanner();
-
-                if (appConfig.spreadsheetId) {
-                    document.getElementById('btnOpenSheet').href = `https://docs.google.com/spreadsheets/d/${appConfig.spreadsheetId}/edit`;
-                }
-
-                setTimeout(() => {
-                    closeModal('modalSettings');
-                    feedback.classList.add('hidden');
-                    loadDashboardData();
-                }, 800);
-            } catch (err) {
-                feedback.classList.add('bg-red-100', 'text-red-800');
-                feedback.textContent = 'บันทึกล้มเหลว: ' + err.message;
-            }
-        }
-
-        function toggleDataSourceMode() {
-            appConfig.dataMode = appConfig.dataMode === 'cloud' ? 'demo' : 'cloud';
-            try {
-                localStorage.setItem('xray_github_settings', JSON.stringify(appConfig));
-            } catch (e) {}
-            document.getElementById('settingDataMode').value = appConfig.dataMode;
-            updateDataSourceBanner();
-            loadDashboardData();
-        }
-
-        function updateDataSourceBanner() {
-            const banner = document.getElementById('topDataSourceBanner');
-            const badge = document.getElementById('badgeSourceType');
-            const text = document.getElementById('bannerStatusText');
-            const btn = document.getElementById('btnToggleMode');
-
-            if (appConfig.dataMode === 'demo') {
-                badge.innerHTML = '<i data-lucide="flask-conical" class="w-3 h-3 mr-1 inline"></i> โหมดข้อมูลตัวอย่าง';
-                badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/80 text-white';
-                text.textContent = 'กำลังแสดงข้อมูลจำลอง (Demo Mode) สำหรับการสาธิตและทดสอบ';
-                btn.textContent = 'สลับไปโหมดเชื่อมต่อ Google Sheets สด';
-            } else {
-                badge.innerHTML = '<i data-lucide="cloud" class="w-3 h-3 mr-1 inline"></i> Google Sheets Live';
-                badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/80 text-white';
-                text.textContent = 'เชื่อมต่อข้อมูลจาก Google Sheets ของโรงพยาบาลไทรโยคแบบเรียลไทม์';
-                btn.textContent = 'สลับไปโหมดตัวอย่าง (Demo)';
-            }
-            lucide.createIcons();
-        }
-
-        // Test Connection to Apps Script Web App
-        async function testConnection() {
-            const btn = document.getElementById('btnTestConn');
-            const statusEl = document.getElementById('testConnectionStatus');
-            const url = document.getElementById('settingAppsScriptUrl').value.trim();
-
-            if (!url) {
-                statusEl.innerHTML = '<span class="text-red-500 font-bold">กรุณาระบุ URL ก่อน</span>';
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> กำลังทดสอบ...';
-            statusEl.innerHTML = '<span class="text-slate-500">กำลังเชื่อมต่อ...</span>';
-            lucide.createIcons();
-
-            const startTime = Date.now();
-            try {
-                const res = await callGoogleAppsScript(url, { action: 'overview', start_date: currentStartDate, end_date: currentEndDate });
-                const dur = Date.now() - startTime;
-                if (res && res.status === 'success') {
-                    statusEl.innerHTML = `<span class="text-emerald-600 font-bold">เชื่อมต่อสำเร็จ! (${dur}ms, ${res.total_rows || 0} แถว)</span>`;
-                } else {
-                    statusEl.innerHTML = `<span class="text-amber-600 font-bold">ตอบกลับ: ${res.message || 'ไม่มีข้อมูล'}</span>`;
-                }
-            } catch (err) {
-                statusEl.innerHTML = `<span class="text-red-500 font-bold">การเชื่อมต่อผิดพลาด: ${err.message}</span>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'ทดสอบเดี๋ยวนี้';
-                lucide.createIcons();
-            }
-        }
-
-        // 2. UI Helpers & Clock
-        function initClock() {
-            const clock = document.getElementById('liveClockText');
-            function updateTime() {
-                const d = new Date();
-                clock.textContent = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' น.';
-            }
-            updateTime();
-            setInterval(updateTime, 1000);
-        }
-
-        function checkTheme() {
-            const isDark = localStorage.getItem('theme') === 'dark' || 
-                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (isDark) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        }
-
-        function toggleDarkMode() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            if (currentOverviewData) {
-                renderOverviewCharts(currentOverviewData);
-            }
-        }
-
-        // 3. Datepicker & Period Selector
-        function initDatePickers() {
-            fpStart = flatpickr("#startDateInput", {
-                locale: "th",
-                dateFormat: "Y-m-d",
-                defaultDate: currentStartDate,
-                onChange: function(selectedDates, dateStr) {
-                    currentStartDate = dateStr;
-                }
-            });
-
-            fpEnd = flatpickr("#endDateInput", {
-                locale: "th",
-                dateFormat: "Y-m-d",
-                defaultDate: currentEndDate,
-                onChange: function(selectedDates, dateStr) {
-                    currentEndDate = dateStr;
-                }
-            });
-        }
-
-        function setPeriod(type) {
-            document.querySelectorAll('.period-btn').forEach(btn => {
-                btn.classList.remove('bg-cyan-600', 'text-white', 'shadow-sm', 'active-period');
-                btn.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
-            });
-            const activeBtn = document.querySelector(`[data-period="${type}"]`);
-            if (activeBtn) {
-                activeBtn.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
-                activeBtn.classList.add('bg-cyan-600', 'text-white', 'shadow-sm', 'active-period');
-            }
-
-            const now = new Date();
-            let start = new Date();
-            let end = new Date();
-
-            if (type === 'today') {
-                // today
-            } else if (type === 'yesterday') {
-                start.setDate(now.getDate() - 1);
-                end.setDate(now.getDate() - 1);
-            } else if (type === '7days') {
-                start.setDate(now.getDate() - 6);
-            } else if (type === 'this_month') {
-                start = new Date(now.getFullYear(), now.getMonth(), 1);
-            } else if (type === 'last_month') {
-                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                end = new Date(now.getFullYear(), now.getMonth(), 0);
-            } else if (type === 'this_year') {
-                start = new Date(now.getFullYear(), 0, 1);
-                end = new Date(now.getFullYear(), 11, 31);
-            }
-
-            const formatDate = d => {
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${y}-${m}-${day}`;
-            };
-            currentStartDate = formatDate(start);
-            currentEndDate = formatDate(end);
-
-            if (fpStart) fpStart.setDate(currentStartDate);
-            if (fpEnd) fpEnd.setDate(currentEndDate);
-
-            loadDashboardData();
-        }
-
-        function applyCustomDate() {
-            currentStartDate = document.getElementById('startDateInput').value;
-            currentEndDate = document.getElementById('endDateInput').value;
-            loadDashboardData();
-        }
-
-        // 4. Tabs Navigation
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.remove('border-cyan-600', 'text-cyan-600', 'dark:text-cyan-400');
-                b.classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400');
-            });
-
-            document.getElementById(tabId).classList.remove('hidden');
-            const activeBtn = document.getElementById('btn' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
-            if (activeBtn) {
-                activeBtn.classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400');
-                activeBtn.classList.add('border-cyan-600', 'text-cyan-600', 'dark:text-cyan-400');
-            }
-
-            if (tabId === 'tabDaily') {
-                loadDailyData();
-            } else if (tabId === 'tabMonthly') {
-                loadMonthlyData();
-            } else if (tabId === 'tabPatients') {
-                loadPatients(1);
-            }
-        }
-
-        function filterByShift(shiftCode) {
-            const shiftSelect = document.getElementById('filterShift');
-            if (shiftSelect) shiftSelect.value = shiftCode;
-            switchTab('tabPatients');
-        }
-
-        // 5. Google Apps Script Communication (JSONP + Fetch)
-        function callGoogleAppsScript(baseUrl, params) {
-            return new Promise((resolve, reject) => {
-                // If using JSONP to eliminate CORS issues on GitHub Pages
-                const callbackName = 'xray_jsonp_' + Math.round(100000 * Math.random());
-                const queryParams = new URLSearchParams(params);
-                queryParams.set('callback', callbackName);
-
-                const script = document.createElement('script');
-                const sep = baseUrl.indexOf('?') !== -1 ? '&' : '?';
-                script.src = baseUrl + sep + queryParams.toString();
-
-                let timeoutId = setTimeout(() => {
-                    cleanup();
-                    // Fallback to fetch if JSONP timed out
-                    fetchWithCORS(baseUrl, params).then(resolve).catch(reject);
-                }, 8000);
-
-                window[callbackName] = function(data) {
-                    cleanup();
-                    resolve(data);
-                };
-
-                function cleanup() {
-                    if (timeoutId) clearTimeout(timeoutId);
-                    if (script.parentNode) script.parentNode.removeChild(script);
-                    delete window[callbackName];
-                }
-
-                script.onerror = function() {
-                    cleanup();
-                    // Try fetch as backup
-                    fetchWithCORS(baseUrl, params).then(resolve).catch(reject);
-                };
-
-                document.body.appendChild(script);
-            });
-        }
-
-        async function fetchWithCORS(baseUrl, params) {
-            const queryParams = new URLSearchParams(params);
-            const sep = baseUrl.indexOf('?') !== -1 ? '&' : '?';
-            const res = await fetch(baseUrl + sep + queryParams.toString(), {
-                method: 'GET',
-                redirect: 'follow'
-            });
-            return await res.json();
-        }
-
-        // 6. Main Dashboard Overview Loader
-        async function loadDashboardData() {
-            const icon = document.getElementById('iconRefresh');
-            if (icon) icon.classList.add('animate-spin');
-
-            try {
-                let data;
-                if (appConfig.dataMode === 'demo' || !appConfig.webAppUrl) {
-                    data = generateDemoOverviewData(currentStartDate, currentEndDate);
-                } else {
-                    try {
-                        data = await callGoogleAppsScript(appConfig.webAppUrl, {
-                            action: 'overview',
-                            start_date: currentStartDate,
-                            end_date: currentEndDate
-                        });
-                    } catch (netErr) {
-                        console.warn('Failed to load from Google Apps Script, falling back to demo data:', netErr);
-                        data = generateDemoOverviewData(currentStartDate, currentEndDate);
-                    }
-                }
-
-                if (data && data.status === 'success') {
-                    // Fallback checks to prevent undefined errors
-                    if (!data.period) {
-                        data.period = {
-                            start_date: currentStartDate,
-                            end_date: currentEndDate,
-                            is_single_day: currentStartDate === currentEndDate
-                        };
-                    }
-                    if (!data.kpi) data.kpi = {};
-                    if (!data.shift_breakdown) data.shift_breakdown = [];
-                    if (!data.daily_trend) data.daily_trend = [];
-                    if (!data.hourly_workload) data.hourly_workload = [];
-                    if (!data.top_items) data.top_items = [];
-
-                    // Fallback department & insurance distribution if missing from Web App
-                    if (!data.department_distribution || data.department_distribution.length === 0) {
-                        data.department_distribution = computeDeptDistributionFromRows(data.data || []);
-                    }
-                    if (!data.insurance_distribution || data.insurance_distribution.length === 0) {
-                        data.insurance_distribution = computeInsDistributionFromRows(data.data || []);
-                    }
-
-                    currentOverviewData = data;
-                    renderKPIs(data.kpi);
-                    renderShiftKPIs(data.shift_breakdown, data.kpi);
-                    renderDateLabel(data.period);
-                    renderOverviewCharts(data);
-                    renderTopItems(data.top_items);
-                    document.getElementById('tabPatientBadge').textContent = (data.kpi.total_orders || 0).toLocaleString();
-                } else {
-                    alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + (data ? data.message : 'ไม่สามารถเชื่อมต่อได้'));
-                }
-            } catch (err) {
-                console.error(err);
-                alert('เกิดข้อผิดพลาด: ' + err.message);
-            } finally {
-                if (icon) icon.classList.remove('animate-spin');
-            }
-        }
-
-        function computeDeptDistributionFromRows(rows) {
-            if (!rows || rows.length === 0) return [];
-            const map = {};
-            rows.forEach(r => {
-                const dept = r.department_name || 'ไม่ระบุ';
-                map[dept] = (map[dept] || 0) + 1;
-            });
-            const list = Object.keys(map).map(k => ({ name: k, count: map[k] }));
-            list.sort((a, b) => b.count - a.count);
-            const top = list.slice(0, 8);
-            const otherCount = list.slice(8).reduce((acc, cur) => acc + cur.count, 0);
-            if (otherCount > 0) top.push({ name: 'อื่นๆ', count: otherCount });
-            return top;
-        }
-
-        function computeInsDistributionFromRows(rows) {
-            if (!rows || rows.length === 0) return [];
-            const insMap = { uc: 0, gov: 0, sss: 0, self: 0, foreign: 0, other: 0 };
-            rows.forEach(r => {
-                const s = ((r.pttype_name || '') + ' ' + (r.pttype_category || '')).toLowerCase();
-                if (s.includes('บัตรทอง') || s.includes('uc') || s.includes('หลักประกัน')) insMap.uc++;
-                else if (s.includes('ข้าราชการ') || s.includes('เบิกได้') || s.includes('เบิกตรง') || s.includes('รัฐวิสาหกิจ') || s.includes('อปท')) insMap.gov++;
-                else if (s.includes('ประกันสังคม') || s.includes('sss')) insMap.sss++;
-                else if (s.includes('ชำระเงิน') || s.includes('จ่ายเงิน') || s.includes('เงินสด')) insMap.self++;
-                else if (s.includes('ต่างด้าว')) insMap.foreign++;
-                else insMap.other++;
-            });
-            const colors = { uc: '#06b6d4', gov: '#10b981', sss: '#3b82f6', self: '#f59e0b', foreign: '#ec4899', other: '#8b5cf6' };
-            const names = { uc: 'บัตรทอง (UC)', gov: 'ข้าราชการ/เบิกตรง', sss: 'ประกันสังคม', self: 'ชำระเงินเอง', foreign: 'ต่างด้าว', other: 'อื่นๆ' };
-            return Object.keys(insMap)
-                .map(k => ({ key: k, name: names[k], count: insMap[k], color: colors[k] }))
-                .filter(i => i.count > 0);
-        }
-
-        function renderDateLabel(period) {
-            const el = document.getElementById('selectedDateLabel');
-            if (!el) return;
-            if (period && period.is_single_day !== undefined) {
-                el.textContent = period.is_single_day 
-                    ? formatThaiDate(period.start_date || currentStartDate) 
-                    : `${formatThaiDate(period.start_date || currentStartDate)} ถึง ${formatThaiDate(period.end_date || currentEndDate)}`;
-            } else {
-                el.textContent = (currentStartDate === currentEndDate) 
-                    ? formatThaiDate(currentStartDate) 
-                    : `${formatThaiDate(currentStartDate)} ถึง ${formatThaiDate(currentEndDate)}`;
-            }
-        }
-
-        function renderKPIs(kpi) {
-            document.getElementById('kpiTotalOrders').textContent = (kpi.total_orders || 0).toLocaleString();
-            document.getElementById('kpiOpdOrders').textContent = (kpi.opd_orders || 0).toLocaleString();
-            document.getElementById('kpiIpdOrders').textContent = (kpi.ipd_orders || 0).toLocaleString();
-
-            document.getElementById('kpiTotalPatients').textContent = (kpi.total_patients || 0).toLocaleString();
-            document.getElementById('kpiOpdPatients').textContent = (kpi.opd_patients || 0).toLocaleString();
-            document.getElementById('kpiIpdPatients').textContent = (kpi.ipd_patients || 0).toLocaleString();
-
-            const rev = kpi.total_revenue || 0;
-            document.getElementById('kpiTotalRevenue').textContent = '฿' + rev.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-            const avgPt = kpi.total_patients > 0 ? (rev / kpi.total_patients) : 0;
-            const avgOrd = kpi.total_orders > 0 ? (rev / kpi.total_orders) : 0;
-            document.getElementById('kpiAvgPerPatient').textContent = '฿' + Math.round(avgPt).toLocaleString();
-            document.getElementById('kpiAvgPerOrder').textContent = '฿' + Math.round(avgOrd).toLocaleString();
-
-            const readRate = kpi.read_rate || 0;
-            document.getElementById('kpiReadRate').textContent = readRate + '%';
-            document.getElementById('kpiProgressBar').style.width = readRate + '%';
-            document.getElementById('kpiReadFilms').textContent = (kpi.read_films || 0).toLocaleString();
-            document.getElementById('kpiUnreadFilms').textContent = (kpi.unread_films || 0).toLocaleString();
-        }
-
-        function renderShiftKPIs(shifts, kpi) {
-            if (!shifts || !Array.isArray(shifts)) return;
-            const shiftMap = {};
-            shifts.forEach(s => shiftMap[s.code] = s);
-
-            const night = shiftMap.night || { order_count: 0, patient_count: 0, revenue: 0, percent: 0 };
-            const morning = shiftMap.morning || { order_count: 0, patient_count: 0, revenue: 0, percent: 0 };
-            const afternoon = shiftMap.afternoon || { order_count: 0, patient_count: 0, revenue: 0, percent: 0 };
-
-            // Night
-            document.getElementById('shiftNightOrders').textContent = (night.order_count || 0).toLocaleString();
-            document.getElementById('shiftNightPatients').textContent = (night.patient_count || 0).toLocaleString();
-            document.getElementById('shiftNightPercent').textContent = (night.percent || 0) + '%';
-            document.getElementById('shiftNightRevenue').textContent = '฿' + Math.round(night.revenue || 0).toLocaleString();
-
-            // Morning
-            document.getElementById('shiftMorningOrders').textContent = (morning.order_count || 0).toLocaleString();
-            document.getElementById('shiftMorningPatients').textContent = (morning.patient_count || 0).toLocaleString();
-            document.getElementById('shiftMorningPercent').textContent = (morning.percent || 0) + '%';
-            document.getElementById('shiftMorningRevenue').textContent = '฿' + Math.round(morning.revenue || 0).toLocaleString();
-
-            // Afternoon
-            document.getElementById('shiftAfternoonOrders').textContent = (afternoon.order_count || 0).toLocaleString();
-            document.getElementById('shiftAfternoonPatients').textContent = (afternoon.patient_count || 0).toLocaleString();
-            document.getElementById('shiftAfternoonPercent').textContent = (afternoon.percent || 0) + '%';
-            document.getElementById('shiftAfternoonRevenue').textContent = '฿' + Math.round(afternoon.revenue || 0).toLocaleString();
-        }
-
-        // 7. Render Charts
-        function renderOverviewCharts(data) {
-            const isDark = document.documentElement.classList.contains('dark');
-            const textColor = isDark ? '#94a3b8' : '#64748b';
-            const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-
-            // A. Daily Trend Chart (Total + 3 Shifts)
-            if (chartInstances.dailyTrend) chartInstances.dailyTrend.destroy();
-            const ctxTrend = document.getElementById('chartDailyTrend').getContext('2d');
-            const trendData = data.daily_trend || [];
-            chartInstances.dailyTrend = new Chart(ctxTrend, {
-                type: 'line',
-                data: {
-                    labels: trendData.map(d => d.short_label || (d.date ? d.date.split('-').slice(1).join('/') : '')),
-                    datasets: [
-                        {
-                            label: 'รวมตรวจ (ครั้ง)',
-                            data: trendData.map(d => d.orders || 0),
-                            borderColor: '#06b6d4',
-                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                            fill: true,
-                            tension: 0.35,
-                            borderWidth: 2,
-                            pointRadius: 3,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'เวรเช้า (08-16น.)',
-                            data: trendData.map(d => d.morning || 0),
-                            borderColor: '#f59e0b',
-                            backgroundColor: 'transparent',
-                            borderWidth: 1.5,
-                            pointRadius: 2.5,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'เวรบ่าย (16-24น.)',
-                            data: trendData.map(d => d.afternoon || 0),
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'transparent',
-                            borderWidth: 1.5,
-                            pointRadius: 2.5,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'เวรดึก (00-08น.)',
-                            data: trendData.map(d => d.night || 0),
-                            borderColor: '#8b5cf6',
-                            backgroundColor: 'transparent',
-                            borderWidth: 1.5,
-                            pointRadius: 2.5,
-                            yAxisID: 'y'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { labels: { color: textColor, font: { family: 'Prompt', size: 11 } } },
-                        tooltip: { titleFont: { family: 'Prompt' }, bodyFont: { family: 'Prompt' } }
-                    },
-                    scales: {
-                        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'Prompt', size: 10 } } },
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: gridColor },
-                            ticks: { color: textColor, font: { family: 'Prompt', size: 10 } }
-                        }
-                    }
-                }
-            });
-
-            // Shift Distribution Donut Chart
-            if (chartInstances.shift) chartInstances.shift.destroy();
-            const ctxShift = document.getElementById('chartShiftDistribution')?.getContext('2d');
-            if (ctxShift) {
-                const shiftLabels = (data.shift_breakdown || []).map(s => s.short || s.name);
-                const shiftCounts = (data.shift_breakdown || []).map(s => s.order_count);
-                const shiftColors = (data.shift_breakdown || []).map(s => s.color);
-
-                chartInstances.shift = new Chart(ctxShift, {
-                    type: 'doughnut',
-                    data: {
-                        labels: shiftLabels,
-                        datasets: [{
-                            data: shiftCounts,
-                            backgroundColor: shiftColors,
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { boxWidth: 10, color: textColor, font: { family: 'Prompt', size: 10 } } },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const val = context.raw || 0;
-                                        const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-                                        return ` ${context.label}: ${val.toLocaleString()} ครั้ง (${pct}%)`;
-                                    }
-                                }
-                            }
-                        },
-                        cutout: '65%'
-                    }
-                });
-            }
-
-            // B. Hourly Workload Chart
-            if (chartInstances.hourly) chartInstances.hourly.destroy();
-            const ctxHourly = document.getElementById('chartHourlyWorkload').getContext('2d');
-            const hourlyData = data.hourly_workload || [];
-            chartInstances.hourly = new Chart(ctxHourly, {
-                type: 'bar',
-                data: {
-                    labels: hourlyData.map(h => (h.label || (h.hour !== undefined ? (h.hour < 10 ? '0' + h.hour : h.hour) + ':00' : ''))),
-                    datasets: [{
-                        label: 'ครั้งที่ตรวจ',
-                        data: hourlyData.map(h => h.count || 0),
-                        backgroundColor: '#6366f1',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { titleFont: { family: 'Prompt' }, bodyFont: { family: 'Prompt' } }
-                    },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: textColor, maxTicksLimit: 12, font: { family: 'Prompt', size: 9 } } },
-                        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'Prompt', size: 9 } } }
-                    }
-                }
-            });
-
-            // C. Department Distribution Chart
-            if (chartInstances.dept) chartInstances.dept.destroy();
-            const ctxDept = document.getElementById('chartDepartment').getContext('2d');
-            const deptData = data.department_distribution || [];
-            chartInstances.dept = new Chart(ctxDept, {
-                type: 'doughnut',
-                data: {
-                    labels: deptData.map(d => d.name),
-                    datasets: [{
-                        data: deptData.map(d => d.count),
-                        backgroundColor: ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b', '#a855f7'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 10, color: textColor, font: { family: 'Prompt', size: 10 } } }
-                    },
-                    cutout: '65%'
-                }
-            });
-
-            // D. Insurance Distribution Chart
-            if (chartInstances.insurance) chartInstances.insurance.destroy();
-            const ctxIns = document.getElementById('chartInsurance').getContext('2d');
-            const insData = data.insurance_distribution || [];
-            chartInstances.insurance = new Chart(ctxIns, {
-                type: 'doughnut',
-                data: {
-                    labels: insData.map(i => i.name),
-                    datasets: [{
-                        data: insData.map(i => i.count),
-                        backgroundColor: insData.map(i => i.color || '#06b6d4'),
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 10, color: textColor, font: { family: 'Prompt', size: 10 } } }
-                    },
-                    cutout: '65%'
-                }
-            });
-        }
-
-        // 8. Render Top 10 Procedures List
-        function renderTopItems(items) {
-            const container = document.getElementById('topItemsList');
-            if (!items || items.length === 0) {
-                container.innerHTML = '<div class="text-center py-8 text-xs text-slate-400">ไม่พบข้อมูลการตรวจ</div>';
-                return;
-            }
-
-            container.innerHTML = items.map((item, idx) => {
-                const rankColor = idx === 0 ? 'bg-amber-500 text-white' : (idx === 1 ? 'bg-slate-400 text-white' : (idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'));
-                return `
-                    <div class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <span class="w-5 h-5 rounded-full ${rankColor} text-[10px] font-bold flex items-center justify-center shrink-0">
-                                ${idx + 1}
-                            </span>
-                            <span class="text-xs font-medium text-slate-800 dark:text-slate-200 truncate" title="${item.name}">
-                                ${item.name}
-                            </span>
-                        </div>
-                        <div class="text-right shrink-0 ml-2">
-                            <span class="text-xs font-bold text-slate-800 dark:text-white">${item.count.toLocaleString()} ครั้ง</span>
-                            <span class="text-[10px] text-slate-400 block">${item.percent || 0}%</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // 9. Daily Breakdown Loader
-        async function loadDailyData() {
-            const tbody = document.getElementById('dailyTableBody');
-            const tfoot = document.getElementById('dailyTableFoot');
-            tbody.innerHTML = '<tr><td colspan="11" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
-
-            try {
-                let data;
-                if (appConfig.dataMode === 'demo' || !appConfig.webAppUrl) {
-                    data = generateDemoDailyData(currentStartDate, currentEndDate);
-                } else {
-                    try {
-                        data = await callGoogleAppsScript(appConfig.webAppUrl, {
-                            action: 'daily',
-                            start_date: currentStartDate,
-                            end_date: currentEndDate
-                        });
-                    } catch (e) {
-                        data = generateDemoDailyData(currentStartDate, currentEndDate);
-                    }
-                }
-
-                if (data && data.status === 'success') {
-                    if (data.data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="11" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>';
-                        tfoot.innerHTML = '';
-                        return;
-                    }
-
-                    let sumOrders = 0, sumPatients = 0, sumOpd = 0, sumIpd = 0, sumRevenue = 0, sumRead = 0, sumUnread = 0;
-                    let sumNight = 0, sumMorning = 0, sumAfternoon = 0;
-
-                    tbody.innerHTML = data.data.map(row => {
-                        sumOrders += row.total_orders;
-                        sumPatients += row.total_patients;
-                        sumNight += (row.night_orders || 0);
-                        sumMorning += (row.morning_orders || 0);
-                        sumAfternoon += (row.afternoon_orders || 0);
-                        sumOpd += row.opd_orders;
-                        sumIpd += row.ipd_orders;
-                        sumRevenue += row.total_revenue;
-                        sumRead += row.read_films;
-                        sumUnread += row.unread_films;
-
-                        return `
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
-                                <td class="px-3 py-3 font-medium text-center">${row.thai_date || formatThaiDate(row.date)}</td>
-                                <td class="px-3 py-3 text-right font-bold text-cyan-600 dark:text-cyan-400">${row.total_orders.toLocaleString()}</td>
-                                <td class="px-3 py-3 text-right font-medium">${row.total_patients.toLocaleString()}</td>
-                                <td class="px-3 py-3 text-center bg-purple-50/30 dark:bg-purple-950/10 font-medium text-purple-700 dark:text-purple-300">
-                                    <span class="px-2 py-0.5 rounded-md bg-purple-100/80 dark:bg-purple-900/40 text-[11px] font-semibold">${(row.night_orders || 0).toLocaleString()}</span>
-                                </td>
-                                <td class="px-3 py-3 text-center bg-amber-50/30 dark:bg-amber-950/10 font-medium text-amber-700 dark:text-amber-300">
-                                    <span class="px-2 py-0.5 rounded-md bg-amber-100/80 dark:bg-amber-900/40 text-[11px] font-semibold">${(row.morning_orders || 0).toLocaleString()}</span>
-                                </td>
-                                <td class="px-3 py-3 text-center bg-blue-50/30 dark:bg-blue-950/10 font-medium text-blue-700 dark:text-blue-300">
-                                    <span class="px-2 py-0.5 rounded-md bg-blue-100/80 dark:bg-blue-900/40 text-[11px] font-semibold">${(row.afternoon_orders || 0).toLocaleString()}</span>
-                                </td>
-                                <td class="px-3 py-3 text-right text-slate-600 dark:text-slate-400">${row.opd_orders.toLocaleString()} / ${row.ipd_orders.toLocaleString()}</td>
-                                <td class="px-3 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">฿${row.total_revenue.toLocaleString()}</td>
-                                <td class="px-3 py-3 text-center">
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                                        ${row.read_films.toLocaleString()}
-                                    </span>
-                                </td>
-                                <td class="px-3 py-3 text-center">
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                                        ${row.unread_films.toLocaleString()}
-                                    </span>
-                                </td>
-                                <td class="px-3 py-3 text-center">
-                                    <button onclick="drillDownDate('${row.date}')" class="px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-cyan-100 text-slate-700 dark:text-slate-300 hover:text-cyan-700 font-medium transition">
-                                        ดูผู้ป่วย
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-
-                    tfoot.innerHTML = `
-                        <tr>
-                            <td class="px-3 py-3 text-center font-bold">รวมทั้งสิ้น</td>
-                            <td class="px-3 py-3 text-right font-bold text-cyan-600 dark:text-cyan-400">${sumOrders.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-right font-bold">${sumPatients.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-center font-bold text-purple-700 dark:text-purple-300 bg-purple-50/50 dark:bg-purple-950/20">${sumNight.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-center font-bold text-amber-700 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/20">${sumMorning.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/20">${sumAfternoon.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-right font-medium">${sumOpd.toLocaleString()} / ${sumIpd.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400">฿${sumRevenue.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-center text-emerald-700 dark:text-emerald-300">${sumRead.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-center text-amber-700 dark:text-amber-300">${sumUnread.toLocaleString()}</td>
-                            <td class="px-3 py-3 text-center">-</td>
-                        </tr>
-                    `;
-                }
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = `<tr><td colspan="11" class="px-4 py-8 text-center text-red-500">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
-            }
-        }
-
-        function drillDownDate(dateStr) {
-            currentStartDate = dateStr;
-            currentEndDate = dateStr;
-            if (fpStart) fpStart.setDate(dateStr);
-            if (fpEnd) fpEnd.setDate(dateStr);
-            switchTab('tabPatients');
-        }
-
-        // 10. Monthly Breakdown Loader
-        async function loadMonthlyData() {
-            const year = document.getElementById('monthlyYearSelect').value;
-            const tbody = document.getElementById('monthlyTableBody');
-            const tfoot = document.getElementById('monthlyTableFoot');
-            tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
-
-            try {
-                let data;
-                if (appConfig.dataMode === 'demo' || !appConfig.webAppUrl) {
-                    data = generateDemoMonthlyData(year);
-                } else {
-                    try {
-                        data = await callGoogleAppsScript(appConfig.webAppUrl, {
-                            action: 'monthly',
-                            year: year
-                        });
-                    } catch (e) {
-                        data = generateDemoMonthlyData(year);
-                    }
-                }
-
-                if (data && data.status === 'success') {
-                    let sumOrders = 0, sumPatients = 0, sumOpd = 0, sumIpd = 0, sumRevenue = 0, sumRead = 0, sumUnread = 0;
-
-                    tbody.innerHTML = data.data.map(m => {
-                        sumOrders += m.total_orders;
-                        sumPatients += m.total_patients;
-                        sumOpd += m.opd_orders;
-                        sumIpd += m.ipd_orders;
-                        sumRevenue += m.total_revenue;
-                        sumRead += m.read_films;
-                        sumUnread += m.unread_films;
-
-                        return `
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
-                                <td class="px-4 py-3 font-semibold text-center text-slate-800 dark:text-slate-200">${m.month_name}</td>
-                                <td class="px-4 py-3 text-right font-bold text-cyan-600 dark:text-cyan-400">${m.total_orders.toLocaleString()}</td>
-                                <td class="px-4 py-3 text-right font-medium">${m.total_patients.toLocaleString()}</td>
-                                <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-400">${m.opd_orders.toLocaleString()}</td>
-                                <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-400">${m.ipd_orders.toLocaleString()}</td>
-                                <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">฿${m.total_revenue.toLocaleString()}</td>
-                                <td class="px-4 py-3 text-center text-purple-600 dark:text-purple-400 font-semibold">${m.read_films.toLocaleString()}</td>
-                                <td class="px-4 py-3 text-center text-amber-600 dark:text-amber-400 font-semibold">${m.unread_films.toLocaleString()}</td>
-                                <td class="px-4 py-3 text-center font-bold text-slate-700 dark:text-slate-300">${m.read_rate}%</td>
-                            </tr>
-                        `;
-                    }).join('');
-
-                    const totalReadRate = sumOrders > 0 ? Math.round((sumRead / sumOrders) * 100) : 0;
-                    tfoot.innerHTML = `
-                        <tr>
-                            <td class="px-4 py-3 text-center">รวมทั้งปี พ.ศ. ${data.thai_year || (parseInt(year) + 543)}</td>
-                            <td class="px-4 py-3 text-right text-cyan-600 dark:text-cyan-400">${sumOrders.toLocaleString()}</td>
-                            <td class="px-4 py-3 text-right">${sumPatients.toLocaleString()}</td>
-                            <td class="px-4 py-3 text-right">${sumOpd.toLocaleString()}</td>
-                            <td class="px-4 py-3 text-right">${sumIpd.toLocaleString()}</td>
-                            <td class="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400">฿${sumRevenue.toLocaleString()}</td>
-                            <td class="px-4 py-3 text-center text-purple-600 dark:text-purple-400">${sumRead.toLocaleString()}</td>
-                            <td class="px-4 py-3 text-center text-amber-600 dark:text-amber-400">${sumUnread.toLocaleString()}</td>
-                            <td class="px-4 py-3 text-center">${totalReadRate}%</td>
-                        </tr>
-                    `;
-
-                    renderMonthlyChart(data.data, data.thai_year);
-                }
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-red-500">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
-            }
-        }
-
-        function renderMonthlyChart(months, thaiYear) {
-            const isDark = document.documentElement.classList.contains('dark');
-            const textColor = isDark ? '#94a3b8' : '#64748b';
-            const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-
-            if (chartInstances.monthly) chartInstances.monthly.destroy();
-            const ctx = document.getElementById('chartMonthlyTrend').getContext('2d');
-            chartInstances.monthly = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: months.map(m => m.month_name),
-                    datasets: [
-                        {
-                            label: 'OPD (ครั้ง)',
-                            data: months.map(m => m.opd_orders),
-                            backgroundColor: '#06b6d4',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'IPD (ครั้ง)',
-                            data: months.map(m => m.ipd_orders),
-                            backgroundColor: '#3b82f6',
-                            borderRadius: 4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { labels: { color: textColor, font: { family: 'Prompt', size: 11 } } },
-                        tooltip: { titleFont: { family: 'Prompt' }, bodyFont: { family: 'Prompt' } }
-                    },
-                    scales: {
-                        x: { stacked: true, grid: { display: false }, ticks: { color: textColor, font: { family: 'Prompt', size: 11 } } },
-                        y: { stacked: true, beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'Prompt', size: 11 } } }
-                    }
-                }
-            });
-        }
-
-        // 11. Patient Master Table & Pagination
-        async function loadPatients(page = 1) {
-            patientCurrentPage = page;
-            const tbody = document.getElementById('patientTableBody');
-            tbody.innerHTML = '<tr><td colspan="14" class="px-4 py-8 text-center text-slate-400">กำลังโหลดรายชื่อผู้ป่วย...</td></tr>';
-
-            const search = document.getElementById('patientSearchInput').value.trim();
-            const shift = document.getElementById('filterShift').value;
-            const department = document.getElementById('filterDepartment').value;
-            const filmStatus = document.getElementById('filterFilmStatus').value;
-            const limit = parseInt(document.getElementById('filterLimit').value, 10);
-
-            try {
-                let data;
-                if (appConfig.dataMode === 'demo' || !appConfig.webAppUrl) {
-                    data = filterDemoPatients({
-                        startDate: currentStartDate,
-                        endDate: currentEndDate,
-                        search: search,
-                        shift: shift,
-                        department: department,
-                        filmStatus: filmStatus,
-                        page: page,
-                        limit: limit
-                    });
-                } else {
-                    try {
-                        data = await callGoogleAppsScript(appConfig.webAppUrl, {
-                            action: 'patients',
-                            start_date: currentStartDate,
-                            end_date: currentEndDate,
-                            search: search,
-                            shift: shift,
-                            department: department,
-                            film_status: filmStatus,
-                            page: page,
-                            limit: limit
-                        });
-                    } catch (e) {
-                        data = filterDemoPatients({
-                            startDate: currentStartDate,
-                            endDate: currentEndDate,
-                            search: search,
-                            shift: shift,
-                            department: department,
-                            filmStatus: filmStatus,
-                            page: page,
-                            limit: limit
-                        });
-                    }
-                }
-
-                if (data && data.status === 'success') {
-                    currentRawPatients = data.data || [];
-                    if (currentRawPatients.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="14" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขที่ระบุ</td></tr>';
-                        document.getElementById('patientPaginationInfo').textContent = 'แสดง 0 รายการ';
-                        document.getElementById('patientPaginationControls').innerHTML = '';
-                        return;
-                    }
-
-                    tbody.innerHTML = currentRawPatients.map((p, idx) => {
-                        const ptTypeBadge = p.pt_type === 'IPD' 
-                            ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">IPD</span>'
-                            : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300">OPD</span>';
-
-                        const filmBadge = (p.confirm_read_film === 'Y' || (p.confirm_read_film && p.confirm_read_film.indexOf('อ่านผลแล้ว') !== -1))
-                            ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">อ่านแล้ว</span>'
-                            : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">รออ่าน</span>';
-
-                        const shiftBadge = p.shift_badge || getShiftBadgeHTML(p.request_time);
-
-                        return `
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
-                                <td class="px-3 py-2.5 text-center text-slate-400">${p.no || (idx + 1)}</td>
-                                <td class="px-3 py-2.5 whitespace-nowrap">
-                                    <div class="font-medium text-slate-800 dark:text-slate-200">${p.thai_date || formatThaiDate(p.request_date)}</div>
-                                    <div class="text-[10px] text-slate-400">${p.request_time} น.</div>
-                                </td>
-                                <td class="px-3 py-2.5 text-center whitespace-nowrap">${shiftBadge}</td>
-                                <td class="px-3 py-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">${p.hn}</td>
-                                <td class="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">${p.pt_name}</td>
-                                <td class="px-3 py-2.5 text-center text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                                    ${p.age_y !== null ? p.age_y + ' ปี' : '-'} / ${p.sex_label || (p.sex == '1' ? 'ชาย' : 'หญิง')}
-                                </td>
-                                <td class="px-3 py-2.5 text-center">${ptTypeBadge}</td>
-                                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">${p.department_name}</td>
-                                <td class="px-3 py-2.5 font-medium text-cyan-700 dark:text-cyan-300 whitespace-nowrap" title="${p.xray_name}">${p.xray_name}</td>
-                                <td class="px-3 py-2.5 whitespace-nowrap">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                                        ${p.pttype_category || p.pttype_name || '-'}
-                                    </span>
-                                </td>
-                                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">${p.doctor_name || '-'}</td>
-                                <td class="px-3 py-2.5 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">฿${(p.price || 0).toLocaleString()}</td>
-                                <td class="px-3 py-2.5 text-center whitespace-nowrap">${filmBadge}</td>
-                                <td class="px-3 py-2.5 text-center whitespace-nowrap">
-                                    <button onclick="openPatientDetailModal(${p.xn || idx})" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 text-cyan-700 dark:text-cyan-300 font-medium transition">
-                                        ดูข้อมูล
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-
-                    renderPagination(data);
-                }
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = `<tr><td colspan="14" class="px-4 py-8 text-center text-red-500">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
-            }
-        }
-
-        function getShiftBadgeHTML(timeStr) {
-            if (!timeStr) return '';
-            const h = parseInt(timeStr.split(':')[0], 10) || 0;
-            if (h >= 0 && h < 8) {
-                return '<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">🌙 ดึก</span>';
-            } else if (h >= 8 && h < 16) {
-                return '<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">☀️ เช้า</span>';
-            } else {
-                return '<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">🌇 บ่าย</span>';
-            }
-        }
-
-        function renderPagination(data) {
-            const startIdx = ((data.page - 1) * data.limit) + 1;
-            const endIdx = Math.min(data.page * data.limit, data.total_rows);
-            document.getElementById('patientPaginationInfo').textContent = `แสดง ${startIdx.toLocaleString()} ถึง ${endIdx.toLocaleString()} จากทั้งหมด ${data.total_rows.toLocaleString()} รายการ`;
-
-            const container = document.getElementById('patientPaginationControls');
-            let btns = '';
-
-            if (data.page > 1) {
-                btns += `<button onclick="loadPatients(${data.page - 1})" class="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100">ก่อนหน้า</button>`;
-            }
-
-            const maxP = Math.min(data.total_pages, 5);
-            let startP = Math.max(1, data.page - 2);
-            let endP = Math.min(data.total_pages, startP + 4);
-            if (endP - startP < 4) startP = Math.max(1, endP - 4);
-
-            for (let i = startP; i <= endP; i++) {
-                const active = i === data.page ? 'bg-cyan-600 text-white font-bold' : 'border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100';
-                btns += `<button onclick="loadPatients(${i})" class="w-8 h-8 rounded-lg text-xs flex items-center justify-center ${active}">${i}</button>`;
-            }
-
-            if (data.page < data.total_pages) {
-                btns += `<button onclick="loadPatients(${data.page + 1})" class="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100">ถัดไป</button>`;
-            }
-
-            container.innerHTML = btns;
-        }
-
-        // 12. Modal Handlers
-        function openPatientDetailModal(xnOrIdx) {
-            const p = currentRawPatients.find(item => (item.xn == xnOrIdx || item.no == xnOrIdx)) || currentRawPatients[0];
-            if (!p) return;
-
-            openModal('modalPatientDetail');
-            document.getElementById('modalPtName').textContent = p.pt_name;
-            document.getElementById('modalPtHn').textContent = p.hn;
-            document.getElementById('modalPtVn').textContent = p.an || p.vn || '-';
-            document.getElementById('modalPtAge').textContent = (p.age_y !== null ? p.age_y + ' ปี' : '-') + ' / ' + (p.sex_label || (p.sex == '1' ? 'ชาย' : 'หญิง'));
-            document.getElementById('modalPtTypeBadge').textContent = p.pt_type;
-            document.getElementById('modalShiftName').textContent = p.shift_name || (p.shift_code === 'night' ? 'เวรดึก (00-08 น.)' : (p.shift_code === 'morning' ? 'เวรเช้า (08-16 น.)' : 'เวรบ่าย (16-24 น.)'));
-            document.getElementById('modalXrayName').textContent = p.xray_name;
-            document.getElementById('modalPrice').textContent = Number(p.price || 0).toLocaleString();
-            document.getElementById('modalPttypeName').textContent = p.pttype_name || '-';
-            document.getElementById('modalPttypeCategory').textContent = p.pttype_category || '-';
-            document.getElementById('modalRequestDateTime').textContent = `${p.thai_date || formatThaiDate(p.request_date)} เวลา ${p.request_time} น.`;
-            document.getElementById('modalDepartment').textContent = p.department_name;
-            document.getElementById('modalDoctorName').textContent = p.doctor_name || '-';
-            document.getElementById('modalPdx').textContent = p.pdx ? `${p.pdx} - ${p.pdx_name || ''}` : (p.clinical_diagnosis || 'ไม่มีบันทึก');
-            document.getElementById('modalDiagnosis').textContent = p.clinical_information || p.clinical_diagnosis || 'ไม่มีบันทึกเพิ่มเติม';
-            
-            const isRead = (p.confirm_read_film === 'Y' || (p.confirm_read_film && p.confirm_read_film.indexOf('อ่านผลแล้ว') !== -1));
-            document.getElementById('modalFilmStatusBadge').textContent = isRead ? 'อ่านผลเรียบร้อยแล้ว' : 'รออ่านผล';
-            document.getElementById('modalReportDoctor').textContent = `แพทย์ผู้อ่านผล: ${p.report_doctor_name || (isRead ? 'นพ. รังสีแพทย์' : 'ยังไม่อ่านผล')}`;
-            document.getElementById('modalReportText').textContent = p.report_text ? p.report_text : (isRead ? 'Chest PA: Clear lungs, no cardiomegaly, bony thorax intact.' : '(ยังไม่มีบันทึกผลการอ่านฟิล์ม)');
-        }
-
-        function openSettingsModal() {
-            document.getElementById('settingAppsScriptUrl').value = appConfig.webAppUrl || '';
-            document.getElementById('settingSpreadsheetId').value = appConfig.spreadsheetId || '';
-            document.getElementById('settingSheetName').value = appConfig.sheetName || 'XRAY_DATA';
-            document.getElementById('settingDataMode').value = appConfig.dataMode || 'cloud';
-            openModal('modalSettings');
-        }
-
-        function openModal(id) {
-            document.getElementById(id).classList.remove('hidden');
-            lucide.createIcons();
-        }
-
-        function closeModal(id) {
-            document.getElementById(id).classList.add('hidden');
-        }
-
-        // 13. Client-Side Excel / CSV Export (Supports GitHub Pages)
-        function exportExcelClientSide() {
-            if (!currentRawPatients || currentRawPatients.length === 0) {
-                alert('ไม่พบรายการข้อมูลสำหรับส่งออก');
-                return;
-            }
-
-            const headers = [
-                'ลำดับ', 'วันที่ตรวจ', 'เวลา', 'เวรตรวจ', 'HN', 'VN/AN', 'ประเภท',
-                'ชื่อ-นามสกุล', 'เพศ', 'อายุ', 'สิทธิการรักษา', 'กลุ่มสิทธิ',
-                'แผนกที่ส่ง', 'รายการตรวจ X-Ray', 'รหัสโรค', 'ชื่อโรค', 'แพทย์ผู้สั่ง',
-                'ราคา', 'สถานะการอ่านฟิล์ม'
-            ];
-
-            const rows = currentRawPatients.map((p, idx) => [
-                idx + 1,
-                p.request_date || '',
-                p.request_time || '',
-                p.shift_name || (p.shift_code === 'night' ? 'เวรดึก' : (p.shift_code === 'morning' ? 'เวรเช้า' : 'เวรบ่าย')),
-                `"${p.hn || ''}"`,
-                `"${p.an || p.vn || ''}"`,
-                p.pt_type || '',
-                `"${p.pt_name || ''}"`,
-                p.sex_label || (p.sex == '1' ? 'ชาย' : 'หญิง'),
-                p.age_y !== null ? p.age_y : '',
-                `"${p.pttype_name || ''}"`,
-                `"${p.pttype_category || ''}"`,
-                `"${p.department_name || ''}"`,
-                `"${p.xray_name || ''}"`,
-                `"${p.pdx || ''}"`,
-                `"${p.pdx_name || ''}"`,
-                `"${p.doctor_name || ''}"`,
-                p.price || 0,
-                (p.confirm_read_film === 'Y' || (p.confirm_read_film && p.confirm_read_film.indexOf('อ่านผลแล้ว') !== -1)) ? 'อ่านแล้ว' : 'รออ่าน'
-            ]);
-
-            const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `xray_report_${currentStartDate}_to_${currentEndDate}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        // ===================================================================
-        // 14. REALISTIC SAIYOK HOSPITAL DEMO DATA GENERATOR (OFFLINE / FALLBACK)
-        // ===================================================================
-        function generateDemoOverviewData(startDate, endDate) {
-            const daysCount = Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1);
-            const isSingle = startDate === endDate;
-
-            const basePerDay = 35;
-            const totalOrders = Math.round(daysCount * basePerDay * (0.85 + Math.random() * 0.3));
-            const totalPatients = Math.round(totalOrders * 0.88);
-            const opdOrders = Math.round(totalOrders * 0.72);
-            const ipdOrders = totalOrders - opdOrders;
-            const totalRevenue = totalOrders * 170;
-            const readFilms = Math.round(totalOrders * 0.92);
-            const unreadFilms = totalOrders - readFilms;
-
-            // 3 Shifts Breakdown
-            const morningOrders = Math.round(totalOrders * 0.65);
-            const afternoonOrders = Math.round(totalOrders * 0.23);
-            const nightOrders = totalOrders - morningOrders - afternoonOrders;
-
-            const shiftBreakdown = [
-                {
-                    code: 'night',
-                    name: 'เวรดึก (00:00 - 08:00 น.)',
-                    short: 'เวรดึก (00-08น.)',
-                    order_count: nightOrders,
-                    patient_count: Math.round(nightOrders * 0.9),
-                    revenue: nightOrders * 170,
-                    percent: Math.round((nightOrders / totalOrders) * 100),
-                    color: '#8b5cf6'
-                },
-                {
-                    code: 'morning',
-                    name: 'เวรเช้า (08:00 - 16:00 น.)',
-                    short: 'เวรเช้า (08-16น.)',
-                    order_count: morningOrders,
-                    patient_count: Math.round(morningOrders * 0.88),
-                    revenue: morningOrders * 170,
-                    percent: Math.round((morningOrders / totalOrders) * 100),
-                    color: '#f59e0b'
-                },
-                {
-                    code: 'afternoon',
-                    name: 'เวรบ่าย (16:00 - 24:00 น.)',
-                    short: 'เวรบ่าย (16-24น.)',
-                    order_count: afternoonOrders,
-                    patient_count: Math.round(afternoonOrders * 0.89),
-                    revenue: afternoonOrders * 170,
-                    percent: Math.round((afternoonOrders / totalOrders) * 100),
-                    color: '#3b82f6'
-                }
-            ];
-
-            // Daily Trend (up to 30 points)
-            const dailyTrend = [];
-            const cur = new Date(startDate);
-            const endD = new Date(endDate);
-            while (cur <= endD) {
-                const ds = cur.toISOString().split('T')[0];
-                const dOrd = Math.round(basePerDay * (0.8 + Math.random() * 0.4));
-                const dMorn = Math.round(dOrd * 0.65);
-                const dAft = Math.round(dOrd * 0.23);
-                const dNight = dOrd - dMorn - dAft;
-                dailyTrend.push({
-                    date: ds,
-                    short_label: ds.split('-').slice(1).join('/'),
-                    orders: dOrd,
-                    patients: Math.round(dOrd * 0.88),
-                    revenue: dOrd * 170,
-                    morning: dMorn,
-                    afternoon: dAft,
-                    night: dNight
-                });
-                cur.setDate(cur.getDate() + 1);
-            }
-
-            // Hourly Workload (0-23)
-            const hourlyWorkload = [];
-            for (let h = 0; h < 24; h++) {
-                let weight = 1;
-                if (h >= 9 && h <= 11) weight = 6;
-                else if (h >= 13 && h <= 15) weight = 4.5;
-                else if (h >= 17 && h <= 20) weight = 2.5;
-                else if (h >= 0 && h < 6) weight = 0.5;
-                hourlyWorkload.push({
-                    hour: String(h).padStart(2, '0'),
-                    count: Math.round((totalOrders / 24) * (weight / 2.5))
-                });
-            }
-
-            return {
-                status: 'success',
-                total_rows: totalOrders,
-                period: {
-                    start_date: startDate,
-                    end_date: endDate,
-                    is_single_day: isSingle
-                },
-                kpi: {
-                    total_orders: totalOrders,
-                    total_patients: totalPatients,
-                    opd_orders: opdOrders,
-                    ipd_orders: ipdOrders,
-                    opd_patients: Math.round(totalPatients * 0.72),
-                    ipd_patients: Math.round(totalPatients * 0.28),
-                    total_revenue: totalRevenue,
-                    read_films: readFilms,
-                    unread_films: unreadFilms,
-                    read_rate: Math.round((readFilms / totalOrders) * 100)
-                },
-                shift_breakdown: shiftBreakdown,
-                daily_trend: dailyTrend,
-                hourly_workload: hourlyWorkload,
-                department_distribution: [
-                    { name: 'กลุ่มงานอุบัติเหตุและฉุกเฉิน (ER)', count: Math.round(totalOrders * 0.35) },
-                    { name: 'กลุ่มงานผู้ป่วยนอก (OPD)', count: Math.round(totalOrders * 0.30) },
-                    { name: 'หอผู้ป่วยใน (IPD)', count: Math.round(totalOrders * 0.18) },
-                    { name: 'คลินิก ARI / โรคระบบทางเดินหายใจ', count: Math.round(totalOrders * 0.10) },
-                    { name: 'คลินิกพิเศษเฉพาะทาง', count: Math.round(totalOrders * 0.07) }
-                ],
-                insurance_distribution: [
-                    { name: 'ประกันสุขภาพถ้วนหน้า (บัตรทอง UC)', count: Math.round(totalOrders * 0.72), color: '#10b981' },
-                    { name: 'สิทธิข้าราชการ/เบิกตรง (OFC)', count: Math.round(totalOrders * 0.14), color: '#3b82f6' },
-                    { name: 'ประกันสังคม (SSS)', count: Math.round(totalOrders * 0.08), color: '#f59e0b' },
-                    { name: 'ชำระเงินเอง / ต่างด้าว', count: Math.round(totalOrders * 0.06), color: '#8b5cf6' }
-                ],
-                top_items: [
-                    { name: 'Chest PA (Upright)', count: Math.round(totalOrders * 0.58), percent: 58 },
-                    { name: 'Abdomen (KUB/Supine)', count: Math.round(totalOrders * 0.12), percent: 12 },
-                    { name: 'Extremity: Knee AP/Lat', count: Math.round(totalOrders * 0.08), percent: 8 },
-                    { name: 'Extremity: Foot/Ankle AP/Lat', count: Math.round(totalOrders * 0.06), percent: 6 },
-                    { name: 'Spine: Lumbo-Sacral AP/Lat', count: Math.round(totalOrders * 0.05), percent: 5 },
-                    { name: 'Pelvis AP', count: Math.round(totalOrders * 0.04), percent: 4 },
-                    { name: 'Skull AP/Lat', count: Math.round(totalOrders * 0.03), percent: 3 },
-                    { name: 'Shoulder AP', count: Math.round(totalOrders * 0.02), percent: 2 },
-                    { name: 'Hand/Wrist AP/Obl', count: Math.round(totalOrders * 0.01), percent: 1 },
-                    { name: 'C-Spine AP/Lat', count: Math.round(totalOrders * 0.01), percent: 1 }
-                ]
-            };
-        }
-
-        function generateDemoDailyData(startDate, endDate) {
-            const list = [];
-            const cur = new Date(startDate);
-            const endD = new Date(endDate);
-            while (cur <= endD) {
-                const ds = cur.toISOString().split('T')[0];
-                const total = Math.round(35 * (0.8 + Math.random() * 0.4));
-                const morn = Math.round(total * 0.65);
-                const aft = Math.round(total * 0.23);
-                const night = total - morn - aft;
-                const opd = Math.round(total * 0.72);
-                const ipd = total - opd;
-                const read = Math.round(total * 0.92);
-
-                list.push({
-                    date: ds,
-                    thai_date: formatThaiDate(ds),
-                    total_orders: total,
-                    total_patients: Math.round(total * 0.88),
-                    night_orders: night,
-                    morning_orders: morn,
-                    afternoon_orders: aft,
-                    opd_orders: opd,
-                    ipd_orders: ipd,
-                    total_revenue: total * 170,
-                    read_films: read,
-                    unread_films: total - read
-                });
-                cur.setDate(cur.getDate() + 1);
-            }
-            return { status: 'success', data: list };
-        }
-
-        function generateDemoMonthlyData(year) {
-            const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-            const data = months.map((m, idx) => {
-                const total = Math.round(950 + Math.random() * 250);
-                const opd = Math.round(total * 0.73);
-                const ipd = total - opd;
-                const read = Math.round(total * 0.93);
-                return {
-                    month_num: String(idx + 1).padStart(2, '0'),
-                    month_name: m,
-                    total_orders: total,
-                    total_patients: Math.round(total * 0.88),
-                    opd_orders: opd,
-                    ipd_orders: ipd,
-                    total_revenue: total * 170,
-                    read_films: read,
-                    unread_films: total - read,
-                    read_rate: Math.round((read / total) * 100)
-                };
-            });
-            return {
-                status: 'success',
-                thai_year: parseInt(year, 10) + 543,
-                data: data
-            };
-        }
-
-        function filterDemoPatients(opts) {
-            const names = ['สมชาย ใจดี', 'สมหญิง ศรีสุข', 'ประสิทธิ์ เจริญพร', 'วิภาวรรณ สดใส', 'บุญมี ร่ำรวย', 'นภาพร วงศ์ษา', 'อำนวย มงคล', 'กัญญาณี ทองหล่อ', 'วิชัย ศิริเวช', 'สุภาพร บุญเกิด'];
-            const items = ['Chest PA (Upright)', 'Chest Portable', 'Abdomen KUB', 'Knee AP/Lat', 'L-S Spine AP/Lat', 'Pelvis AP'];
-            const depts = ['กลุ่มงานอุบัติเหตุและฉุกเฉิน (ER)', 'กลุ่มงานผู้ป่วยนอก (OPD)', 'หอผู้ป่วยใน (IPD)'];
-            const docs = ['นพ. ธนาธร สมบูรณ์', 'พญ. วริศรา บุญเลิศ', 'นพ. ศิริชัย วัฒนศิลป์'];
-
-            const allRows = [];
-            const count = 75;
-            for (let i = 1; i <= count; i++) {
-                const h = Math.floor(Math.random() * 24);
-                const m = Math.floor(Math.random() * 60);
-                const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                let shiftCode = 'night';
-                let shiftName = 'เวรดึก (00:00 - 08:00 น.)';
-                if (h >= 8 && h < 16) {
-                    shiftCode = 'morning';
-                    shiftName = 'เวรเช้า (08:00 - 16:00 น.)';
-                } else if (h >= 16 && h < 24) {
-                    shiftCode = 'afternoon';
-                    shiftName = 'เวรบ่าย (16:00 - 24:00 น.)';
-                }
-
-                const ptType = Math.random() > 0.3 ? 'OPD' : 'IPD';
-                const isRead = Math.random() > 0.1 ? 'Y' : 'N';
-
-                allRows.push({
-                    no: i,
-                    xn: 100000 + i,
-                    request_date: opts.startDate,
-                    thai_date: formatThaiDate(opts.startDate),
-                    request_time: timeStr,
-                    shift_code: shiftCode,
-                    shift_name: shiftName,
-                    shift_badge: getShiftBadgeHTML(timeStr),
-                    hn: '00' + (12340 + i),
-                    vn: '69' + (40000 + i),
-                    an: ptType === 'IPD' ? '690' + (1000 + i) : '',
-                    pt_name: names[i % names.length],
-                    pt_type: ptType,
-                    sex: (i % 2 === 0) ? '1' : '2',
-                    sex_label: (i % 2 === 0) ? 'ชาย' : 'หญิง',
-                    age_y: 25 + (i * 3) % 55,
-                    pttype_name: 'บัตรทอง ทั่วไป',
-                    pttype_category: 'บัตรทอง (UC)',
-                    department_name: depts[i % depts.length],
-                    xray_name: items[i % items.length],
-                    doctor_name: docs[i % docs.length],
-                    pdx: 'J069',
-                    pdx_name: 'Acute upper respiratory infection, unspecified',
-                    clinical_diagnosis: 'ไอ มีไข้ หอบเหนื่อย 3 วัน',
-                    price: 170,
-                    confirm_read_film: isRead
-                });
-            }
-
-            // Apply Filters
-            let filtered = allRows.filter(r => {
-                if (opts.shift !== 'all' && r.shift_code !== opts.shift) return false;
-                if (opts.department !== 'all' && r.pt_type !== opts.department) return false;
-                if (opts.filmStatus === 'read' && r.confirm_read_film !== 'Y') return false;
-                if (opts.filmStatus === 'unread' && r.confirm_read_film === 'Y') return false;
-                if (opts.search) {
-                    const s = opts.search.toLowerCase();
-                    const text = `${r.hn} ${r.vn} ${r.pt_name} ${r.xray_name} ${r.doctor_name}`.toLowerCase();
-                    if (!text.includes(s)) return false;
-                }
-                return true;
-            });
-
-            const total = filtered.length;
-            const startIdx = (opts.page - 1) * opts.limit;
-            const paged = filtered.slice(startIdx, startIdx + opts.limit);
-
-            return {
-                status: 'success',
-                total_rows: total,
-                page: opts.page,
-                limit: opts.limit,
-                total_pages: Math.max(1, Math.ceil(total / opts.limit)),
-                data: paged
-            };
-        }
-    </script>
+    <!-- Application Core Script -->
+    <script src="app.js"></script>
 </body>
 </html>
