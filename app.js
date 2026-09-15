@@ -8,8 +8,7 @@
 
 // 1. Default Configuration
 const DEFAULT_CONFIG = {
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbxWbWLCMexQvD1XU2dAh26XUJb0p_pJqECsw0-abRiA35WpYvtZUFSNX_Ro1A-f4m2T/exec',
-    spreadsheetId: '1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbxu36APVgFWkGl4p0uUijHscMKWMnH__IcJEvwZcsNUxiN-xYTLHiLhxQCo19wsi7fS/exec',
     sheetName: 'XRAY_DATA',
     hospitalName: 'โรงพยาบาลไทรโยค',
     dataMode: 'cloud' // 'cloud' (Google Sheet), 'demo' (Offline Mock)
@@ -90,6 +89,31 @@ function getConfirmBadge(confirm) {
     } else {
         return { label: 'ไม่ได้ตรวจ (N)', short: 'N', badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300' };
     }
+}
+
+// Helper: ตรวจสอบสถานะการอ่านฟิล์ม ("รออ่านผล" = "รออ่าน" = ยังไม่ได้อ่าน)
+function isFilmRead(status) {
+    if (!status) return false;
+    const s = String(status).trim();
+    if (s === 'รออ่านผล' || s === 'รออ่าน' || s.indexOf('รอ') !== -1 || s === 'N' || s === 'n' || s === '0') {
+        return false;
+    }
+    if (s === 'อ่านผลแล้ว' || s === 'อ่านแล้ว' || s === 'Y' || s === 'y' || s === '1') {
+        return true;
+    }
+    return s.indexOf('อ่าน') !== -1 && s.indexOf('รอ') === -1;
+}
+
+function getFilmBadgeInfo(status) {
+    const read = isFilmRead(status);
+    return {
+        isRead: read,
+        label: read ? 'อ่านผลแล้ว' : 'รออ่านผล',
+        short: read ? 'อ่านแล้ว' : 'รออ่าน',
+        badge: read 
+            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' 
+            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+    };
 }
 
 // 4. Initialization
@@ -976,13 +1000,15 @@ function synthesizeMonthlyFromDaily(dailyRows, yearStr) {
         dailyRows.forEach(d => {
             if (d.date && d.date.indexOf(mKey) === 0) {
                 const ord = d.orders !== undefined ? d.orders : (d.total_orders || 0);
+                const dRead = d.read_films !== undefined ? d.read_films : 0;
+                const dUnread = d.unread_films !== undefined ? d.unread_films : Math.max(0, ord - dRead);
                 mOrders += ord;
                 mPatients += (d.patients !== undefined ? d.patients : (d.total_patients || 0));
                 mOpd += (d.opd !== undefined ? d.opd : (d.opd_orders || 0));
                 mIpd += (d.ipd !== undefined ? d.ipd : (d.ipd_orders || 0));
                 mRev += (d.revenue !== undefined ? d.revenue : (d.total_revenue || 0));
-                mRead += (d.read_films !== undefined ? d.read_films : 0);
-                mUnread += (d.unread_films !== undefined ? d.unread_films : 0);
+                mRead += dRead;
+                mUnread += dUnread;
             }
         });
 
@@ -1173,9 +1199,9 @@ function renderFilteredPatients(list, page, limit, filters) {
         // Department filter
         if (filters.department !== 'all' && p.department_name !== filters.department) return false;
 
-        // Film status filter
-        if (filters.filmStatus === 'read' && p.confirm_read_film !== 'Y') return false;
-        if (filters.filmStatus === 'unread' && p.confirm_read_film === 'Y') return false;
+        // Film status filter ("รออ่านผล" = "รออ่าน")
+        if (filters.filmStatus === 'read' && !isFilmRead(p.confirm_read_film || p.film_status_text)) return false;
+        if (filters.filmStatus === 'unread' && isFilmRead(p.confirm_read_film || p.film_status_text)) return false;
 
         // Search filter
         if (filters.search) {
@@ -1214,9 +1240,8 @@ function renderPatientRows(rows) {
             ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">IPD</span>'
             : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300">OPD</span>';
 
-        const filmBadge = (p.confirm_read_film === 'Y' || String(p.confirm_read_film).indexOf('อ่าน') !== -1)
-            ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">อ่านแล้ว</span>'
-            : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">รออ่าน</span>';
+        const filmInfo = getFilmBadgeInfo(p.confirm_read_film || p.film_status_text);
+        const filmBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${filmInfo.badge}">${filmInfo.label}</span>`;
 
         const shiftCode = p.shift_code || 'morning';
         const shiftIcon = shiftCode === 'night' ? '🌙' : (shiftCode === 'morning' ? '☀️' : '🌇');
@@ -1370,9 +1395,8 @@ function openPatientDetailModal(idKey) {
 
     const elFilm = document.getElementById('modalFilmStatusBadge');
     if (elFilm) {
-        elFilm.innerHTML = (p.confirm_read_film === 'Y')
-            ? '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">อ่านผลแล้ว</span>'
-            : '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">รออ่านผล</span>';
+        const filmInfo = getFilmBadgeInfo(p.confirm_read_film || p.film_status_text);
+        elFilm.innerHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold ${filmInfo.badge}">${filmInfo.label}</span>`;
     }
 
     safeSetText('modalReportDoctor', p.report_doctor_name || '-');
