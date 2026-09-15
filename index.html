@@ -911,7 +911,7 @@
     <script>
         // Default Configuration
         const DEFAULT_CONFIG = {
-            webAppUrl: 'https://script.google.com/macros/s/AKfycbyi5WpAc-iwVMycx7r7J8pgR2O9iA7cY5uWbwMThO6ApjPpFHaOcLcxEbyKY31rZ0hm/exec',
+            webAppUrl: 'https://script.google.com/macros/s/AKfycbxrvvRy6EOOLF_Qk0pRs_EcutL4-Fq5VeeZpttlCOhlCpSTzJ2QLZkVZwPBwhVpzq9r/exec',
             spreadsheetId: '1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k',
             sheetName: 'XRAY_DATA',
             dataMode: 'cloud', // 'cloud' or 'demo'
@@ -1294,6 +1294,28 @@
                 }
 
                 if (data && data.status === 'success') {
+                    // Fallback checks to prevent undefined errors
+                    if (!data.period) {
+                        data.period = {
+                            start_date: currentStartDate,
+                            end_date: currentEndDate,
+                            is_single_day: currentStartDate === currentEndDate
+                        };
+                    }
+                    if (!data.kpi) data.kpi = {};
+                    if (!data.shift_breakdown) data.shift_breakdown = [];
+                    if (!data.daily_trend) data.daily_trend = [];
+                    if (!data.hourly_workload) data.hourly_workload = [];
+                    if (!data.top_items) data.top_items = [];
+
+                    // Fallback department & insurance distribution if missing from Web App
+                    if (!data.department_distribution || data.department_distribution.length === 0) {
+                        data.department_distribution = computeDeptDistributionFromRows(data.data || []);
+                    }
+                    if (!data.insurance_distribution || data.insurance_distribution.length === 0) {
+                        data.insurance_distribution = computeInsDistributionFromRows(data.data || []);
+                    }
+
                     currentOverviewData = data;
                     renderKPIs(data.kpi);
                     renderShiftKPIs(data.shift_breakdown, data.kpi);
@@ -1312,12 +1334,51 @@
             }
         }
 
+        function computeDeptDistributionFromRows(rows) {
+            if (!rows || rows.length === 0) return [];
+            const map = {};
+            rows.forEach(r => {
+                const dept = r.department_name || 'ไม่ระบุ';
+                map[dept] = (map[dept] || 0) + 1;
+            });
+            const list = Object.keys(map).map(k => ({ name: k, count: map[k] }));
+            list.sort((a, b) => b.count - a.count);
+            const top = list.slice(0, 8);
+            const otherCount = list.slice(8).reduce((acc, cur) => acc + cur.count, 0);
+            if (otherCount > 0) top.push({ name: 'อื่นๆ', count: otherCount });
+            return top;
+        }
+
+        function computeInsDistributionFromRows(rows) {
+            if (!rows || rows.length === 0) return [];
+            const insMap = { uc: 0, gov: 0, sss: 0, self: 0, foreign: 0, other: 0 };
+            rows.forEach(r => {
+                const s = ((r.pttype_name || '') + ' ' + (r.pttype_category || '')).toLowerCase();
+                if (s.includes('บัตรทอง') || s.includes('uc') || s.includes('หลักประกัน')) insMap.uc++;
+                else if (s.includes('ข้าราชการ') || s.includes('เบิกได้') || s.includes('เบิกตรง') || s.includes('รัฐวิสาหกิจ') || s.includes('อปท')) insMap.gov++;
+                else if (s.includes('ประกันสังคม') || s.includes('sss')) insMap.sss++;
+                else if (s.includes('ชำระเงิน') || s.includes('จ่ายเงิน') || s.includes('เงินสด')) insMap.self++;
+                else if (s.includes('ต่างด้าว')) insMap.foreign++;
+                else insMap.other++;
+            });
+            const colors = { uc: '#06b6d4', gov: '#10b981', sss: '#3b82f6', self: '#f59e0b', foreign: '#ec4899', other: '#8b5cf6' };
+            const names = { uc: 'บัตรทอง (UC)', gov: 'ข้าราชการ/เบิกตรง', sss: 'ประกันสังคม', self: 'ชำระเงินเอง', foreign: 'ต่างด้าว', other: 'อื่นๆ' };
+            return Object.keys(insMap)
+                .map(k => ({ key: k, name: names[k], count: insMap[k], color: colors[k] }))
+                .filter(i => i.count > 0);
+        }
+
         function renderDateLabel(period) {
             const el = document.getElementById('selectedDateLabel');
-            if (period.is_single_day) {
-                el.textContent = formatThaiDate(period.start_date);
+            if (!el) return;
+            if (period && period.is_single_day !== undefined) {
+                el.textContent = period.is_single_day 
+                    ? formatThaiDate(period.start_date || currentStartDate) 
+                    : `${formatThaiDate(period.start_date || currentStartDate)} ถึง ${formatThaiDate(period.end_date || currentEndDate)}`;
             } else {
-                el.textContent = `${formatThaiDate(period.start_date)} ถึง ${formatThaiDate(period.end_date)}`;
+                el.textContent = (currentStartDate === currentEndDate) 
+                    ? formatThaiDate(currentStartDate) 
+                    : `${formatThaiDate(currentStartDate)} ถึง ${formatThaiDate(currentEndDate)}`;
             }
         }
 
@@ -1382,14 +1443,15 @@
             // A. Daily Trend Chart (Total + 3 Shifts)
             if (chartInstances.dailyTrend) chartInstances.dailyTrend.destroy();
             const ctxTrend = document.getElementById('chartDailyTrend').getContext('2d');
+            const trendData = data.daily_trend || [];
             chartInstances.dailyTrend = new Chart(ctxTrend, {
                 type: 'line',
                 data: {
-                    labels: data.daily_trend.map(d => d.short_label || d.date.split('-').slice(1).join('/')),
+                    labels: trendData.map(d => d.short_label || (d.date ? d.date.split('-').slice(1).join('/') : '')),
                     datasets: [
                         {
                             label: 'รวมตรวจ (ครั้ง)',
-                            data: data.daily_trend.map(d => d.orders),
+                            data: trendData.map(d => d.orders || 0),
                             borderColor: '#06b6d4',
                             backgroundColor: 'rgba(6, 182, 212, 0.1)',
                             fill: true,
@@ -1400,7 +1462,7 @@
                         },
                         {
                             label: 'เวรเช้า (08-16น.)',
-                            data: data.daily_trend.map(d => d.morning || 0),
+                            data: trendData.map(d => d.morning || 0),
                             borderColor: '#f59e0b',
                             backgroundColor: 'transparent',
                             borderWidth: 1.5,
@@ -1409,7 +1471,7 @@
                         },
                         {
                             label: 'เวรบ่าย (16-24น.)',
-                            data: data.daily_trend.map(d => d.afternoon || 0),
+                            data: trendData.map(d => d.afternoon || 0),
                             borderColor: '#3b82f6',
                             backgroundColor: 'transparent',
                             borderWidth: 1.5,
@@ -1418,7 +1480,7 @@
                         },
                         {
                             label: 'เวรดึก (00-08น.)',
-                            data: data.daily_trend.map(d => d.night || 0),
+                            data: trendData.map(d => d.night || 0),
                             borderColor: '#8b5cf6',
                             backgroundColor: 'transparent',
                             borderWidth: 1.5,
@@ -1488,13 +1550,14 @@
             // B. Hourly Workload Chart
             if (chartInstances.hourly) chartInstances.hourly.destroy();
             const ctxHourly = document.getElementById('chartHourlyWorkload').getContext('2d');
+            const hourlyData = data.hourly_workload || [];
             chartInstances.hourly = new Chart(ctxHourly, {
                 type: 'bar',
                 data: {
-                    labels: data.hourly_workload.map(h => h.hour + ':00'),
+                    labels: hourlyData.map(h => (h.label || (h.hour !== undefined ? (h.hour < 10 ? '0' + h.hour : h.hour) + ':00' : ''))),
                     datasets: [{
                         label: 'ครั้งที่ตรวจ',
-                        data: data.hourly_workload.map(h => h.count),
+                        data: hourlyData.map(h => h.count || 0),
                         backgroundColor: '#6366f1',
                         borderRadius: 4
                     }]
@@ -1516,12 +1579,13 @@
             // C. Department Distribution Chart
             if (chartInstances.dept) chartInstances.dept.destroy();
             const ctxDept = document.getElementById('chartDepartment').getContext('2d');
+            const deptData = data.department_distribution || [];
             chartInstances.dept = new Chart(ctxDept, {
                 type: 'doughnut',
                 data: {
-                    labels: data.department_distribution.map(d => d.name),
+                    labels: deptData.map(d => d.name),
                     datasets: [{
-                        data: data.department_distribution.map(d => d.count),
+                        data: deptData.map(d => d.count),
                         backgroundColor: ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b', '#a855f7'],
                         borderWidth: 0
                     }]
@@ -1539,13 +1603,14 @@
             // D. Insurance Distribution Chart
             if (chartInstances.insurance) chartInstances.insurance.destroy();
             const ctxIns = document.getElementById('chartInsurance').getContext('2d');
+            const insData = data.insurance_distribution || [];
             chartInstances.insurance = new Chart(ctxIns, {
                 type: 'doughnut',
                 data: {
-                    labels: data.insurance_distribution.map(i => i.name),
+                    labels: insData.map(i => i.name),
                     datasets: [{
-                        data: data.insurance_distribution.map(i => i.count),
-                        backgroundColor: data.insurance_distribution.map(i => i.color || '#06b6d4'),
+                        data: insData.map(i => i.count),
+                        backgroundColor: insData.map(i => i.color || '#06b6d4'),
                         borderWidth: 0
                     }]
                 },
