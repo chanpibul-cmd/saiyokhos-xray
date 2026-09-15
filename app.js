@@ -2,31 +2,35 @@
  * ====================================================================================
  * X-Ray Department Analytics & Reporting System - Main Application (app.js)
  * โรงพยาบาลไทรโยค (Saiyok Hospital)
- * Supports: Local HOSxP MySQL (api.php), Google Apps Script Web App, and Offline Demo
+ * โหมด: เชื่อมต่อตรงกับ Google Sheets (Google Apps Script Web App) สำหรับ GitHub Pages
  * ====================================================================================
  */
 
 // 1. Default Configuration
 const DEFAULT_CONFIG = {
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbyi5WpAc-iwVMycx7r7J8pgR2O9iA7cY5uWbwMThO6ApjPpFHaOcLcxEbyKY31rZ0hm/exec',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbyWvsD8-nEP5srOxtyRXr47Tc7Lisiu85efy0huokiNxmtl_0XO-akfiahMipSVBQm2/exec',
     spreadsheetId: '1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k',
     sheetName: 'XRAY_DATA',
     hospitalName: 'โรงพยาบาลไทรโยค',
-    dataMode: 'auto' // 'auto', 'cloud', 'local', 'demo'
+    dataMode: 'cloud' // 'cloud' (Google Sheet), 'demo' (Offline Mock)
 };
 
 // 2. Global State Management
 let appConfig = Object.assign({}, DEFAULT_CONFIG);
 let currentStartDate = getTodayStr();
 let currentEndDate = getTodayStr();
-let currentOverviewData = null;
-let currentRawPatients = [];
+let latestDateAvailable = null;
+
+// In-Memory Data Store (Zero-latency instant rendering)
+let cachedOverviewData = null;
+let cachedPatientsList = [];
+let cachedDailyTrend = [];
 let chartInstances = {};
 let patientCurrentPage = 1;
 let searchTimeout = null;
 let fpStart = null;
 let fpEnd = null;
-let detectedMode = null; // cached auto-detected mode ('local', 'cloud', 'demo')
+let isFetching = false;
 
 // 3. Date & Format Helpers
 function getTodayStr() {
@@ -39,7 +43,7 @@ function getTodayStr() {
 
 function formatThaiDate(dateStr) {
     if (!dateStr) return '-';
-    const parts = dateStr.split('-');
+    const parts = String(dateStr).split('-');
     if (parts.length !== 3) return dateStr;
     const y = parseInt(parts[0], 10) + 543;
     const months = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -68,33 +72,35 @@ function getShiftBadgeClass(shiftCode) {
 
 function getWaitBadge(waitMinutes) {
     if (waitMinutes === null || waitMinutes === undefined || isNaN(waitMinutes)) {
-        return { text: '-', badge: 'bg-slate-100 text-slate-500' };
+        return { text: '-', badge: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' };
     }
     const mins = Math.round(Number(waitMinutes));
     if (mins <= 30) {
-        return { text: `${mins} นาที`, badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200' };
+        return { text: `${mins} นาที`, badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' };
     } else if (mins <= 60) {
-        return { text: `${mins} นาที`, badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200' };
+        return { text: `${mins} นาที`, badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800' };
     } else {
-        return { text: `${mins} นาที`, badge: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 font-bold' };
+        return { text: `${mins} นาที`, badge: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 font-bold' };
     }
 }
 
 function getConfirmBadge(confirm) {
-    if (confirm === 'Y') {
+    if (confirm === 'Y' || confirm === 'ตรวจสำเร็จ' || confirm === 'ตรวจแล้ว') {
         return { label: 'ตรวจสำเร็จ', badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' };
     } else {
         return { label: 'ไม่ได้ตรวจ', badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300' };
     }
 }
 
-// 4. Initialization on DOMContentLoaded
+// 4. Initialization
 document.addEventListener('DOMContentLoaded', () => {
     loadStoredSettings();
     if (window.lucide) lucide.createIcons();
     initClock();
     initDatePickers();
     checkTheme();
+
+    // Auto-fetch data from Google Sheet
     loadDashboardData();
 
     // Debounced Search on Patients Tab
@@ -104,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 loadPatients(1);
-            }, 350);
+            }, 300);
         });
     }
 });
@@ -122,7 +128,7 @@ function initClock() {
     setInterval(updateClock, 1000);
 }
 
-// 6. Date Pickers (Flatpickr)
+// 6. Flatpickr Date Pickers
 function initDatePickers() {
     if (typeof flatpickr === 'undefined') return;
     
@@ -162,9 +168,8 @@ function toggleDarkMode() {
         document.documentElement.classList.add('dark');
         localStorage.theme = 'dark';
     }
-    // Re-render active charts to match dark/light grid text
-    if (currentOverviewData) {
-        renderOverviewCharts(currentOverviewData);
+    if (cachedOverviewData) {
+        renderOverviewCharts(cachedOverviewData);
     }
 }
 
@@ -226,6 +231,17 @@ function applyCustomDate() {
     loadDashboardData();
 }
 
+function switchToLatestDate() {
+    if (!latestDateAvailable) return;
+    currentStartDate = latestDateAvailable;
+    currentEndDate = latestDateAvailable;
+    if (fpStart) fpStart.setDate(currentStartDate);
+    if (fpEnd) fpEnd.setDate(currentEndDate);
+    const banner = document.getElementById('dateNoticeBanner');
+    if (banner) banner.classList.add('hidden');
+    loadDashboardData();
+}
+
 // 9. Tab Switching
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
@@ -252,114 +268,86 @@ function switchTab(tabId) {
     }
 }
 
-// 10. Universal Data Adapter (Auto-detect / Local API / Google Apps Script / Demo)
+// 10. Universal Data Requester (Google Apps Script Web App / Demo)
 async function requestApi(action, params = {}) {
     params.action = action;
     params.start_date = params.start_date || currentStartDate;
     params.end_date = params.end_date || currentEndDate;
 
-    // Check configuration mode
-    let mode = appConfig.dataMode || 'auto';
-
-    if (mode === 'auto') {
-        if (detectedMode) {
-            mode = detectedMode;
-        } else {
-            // Probe local backend api.php
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 1800);
-                const probeRes = await fetch('api.php?action=overview&start_date=' + currentStartDate + '&end_date=' + currentEndDate, {
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                if (probeRes.ok) {
-                    const testJson = await probeRes.json();
-                    if (testJson && testJson.status === 'success') {
-                        detectedMode = 'local';
-                        mode = 'local';
-                    }
-                }
-            } catch (err) {
-                // Local api.php not available (e.g. GitHub Pages)
-                if (appConfig.webAppUrl && appConfig.webAppUrl.trim() !== '') {
-                    detectedMode = 'cloud';
-                    mode = 'cloud';
-                } else {
-                    detectedMode = 'demo';
-                    mode = 'demo';
-                }
-            }
-        }
-    }
-
-    // Execute according to resolved mode
-    if (mode === 'local') {
-        try {
-            const qs = new URLSearchParams(params).toString();
-            const res = await fetch(`api.php?${qs}`);
-            const data = await res.json();
-            return data;
-        } catch (err) {
-            console.warn('Local api.php request failed, attempting fallback to cloud/demo:', err);
-            if (appConfig.webAppUrl) return await callGoogleAppsScript(params);
-            return generateDemoData(action, params);
-        }
-    } else if (mode === 'cloud') {
-        try {
-            return await callGoogleAppsScript(params);
-        } catch (err) {
-            console.warn('Google Apps Script call failed, falling back to demo data:', err);
-            return generateDemoData(action, params);
-        }
-    } else {
-        // 'demo' mode
+    if (appConfig.dataMode === 'demo') {
         return generateDemoData(action, params);
     }
+
+    return await callGoogleAppsScript(params);
 }
 
-// Google Apps Script JSONP / GET Caller
+// Robust Google Apps Script Caller with Strict Timeout & Fallback
 async function callGoogleAppsScript(params) {
-    if (!appConfig.webAppUrl) {
-        throw new Error('ยังไม่ได้ระบุ Google Apps Script Web App URL');
+    if (!appConfig.webAppUrl || appConfig.webAppUrl.trim() === '') {
+        throw new Error('ยังไม่ได้ระบุ Google Apps Script Web App URL กรุณาตั้งค่าที่ไอคอนรูปเฟือง');
     }
 
     const url = new URL(appConfig.webAppUrl);
     Object.keys(params).forEach(k => {
-        if (params[k] !== undefined && params[k] !== null) {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
             url.searchParams.append(k, params[k]);
         }
     });
     if (appConfig.spreadsheetId) url.searchParams.append('spreadsheet_id', appConfig.spreadsheetId);
     if (appConfig.sheetName) url.searchParams.append('sheet_name', appConfig.sheetName);
 
-    // Try standard fetch first (GAS supports CORS redirects)
+    // Try standard fetch first (with 16-second AbortController timeout)
     try {
-        const res = await fetch(url.toString(), { method: 'GET', redirect: 'follow' });
+        const controller = new AbortController();
+        const fetchTimeout = setTimeout(() => controller.abort(), 16000);
+
+        const res = await fetch(url.toString(), {
+            method: 'GET',
+            redirect: 'follow',
+            signal: controller.signal
+        });
+        clearTimeout(fetchTimeout);
+
         if (res.ok) {
             const data = await res.json();
-            return data;
+            if (data && typeof data === 'object') {
+                return data;
+            }
         }
     } catch (fetchErr) {
-        console.warn('Fetch GAS failed (likely CORS), trying JSONP callback:', fetchErr);
+        // Fetch failed (CORS redirect or browser policy), fall back to JSONP
+        console.warn('Fetch GAS direct failed, attempting JSONP callback:', fetchErr.message);
     }
 
-    // Fallback: JSONP
+    // JSONP Fallback with strict 16-second timeout
     return new Promise((resolve, reject) => {
-        const callbackName = 'gas_cb_' + Math.round(100000 * Math.random());
-        window[callbackName] = function(data) {
+        const callbackName = 'gas_cb_' + Math.round(1000000 * Math.random());
+        let timer = null;
+
+        const cleanup = () => {
+            if (timer) clearTimeout(timer);
             delete window[callbackName];
-            if (scriptTag && scriptTag.parentNode) scriptTag.parentNode.removeChild(scriptTag);
+            const scriptEl = document.getElementById(callbackName);
+            if (scriptEl && scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl);
+        };
+
+        window[callbackName] = function(data) {
+            cleanup();
             resolve(data);
         };
 
-        url.searchParams.append('callback', callbackName);
+        timer = setTimeout(() => {
+            cleanup();
+            reject(new Error('การเชื่อมต่อ Google Apps Script เกินเวลา (Timeout 16 วินาที) กรุณาตรวจสอบ URL หรือการ Deploy'));
+        }, 16000);
+
         const scriptTag = document.createElement('script');
+        scriptTag.id = callbackName;
+        url.searchParams.append('callback', callbackName);
         scriptTag.src = url.toString();
         scriptTag.onerror = () => {
-            delete window[callbackName];
-            if (scriptTag && scriptTag.parentNode) scriptTag.parentNode.removeChild(scriptTag);
-            reject(new Error('ไม่สามารถเชื่อมต่อ Google Apps Script Web App ได้'));
+            cleanup();
+            reject(new Error('ไม่สามารถโหลดข้อมูลผ่าน Google Apps Script Web App ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง (Who has access: Anyone)'));
         };
         document.body.appendChild(scriptTag);
     });
@@ -367,8 +355,14 @@ async function callGoogleAppsScript(params) {
 
 // 11. Main Dashboard Overview Loader
 async function loadDashboardData() {
+    if (isFetching) return;
+    isFetching = true;
+
     const icon = document.getElementById('iconRefresh');
     if (icon) icon.classList.add('animate-spin');
+
+    const dateLabelEl = document.getElementById('selectedDateLabel');
+    if (dateLabelEl) dateLabelEl.textContent = 'กำลังโหลดข้อมูลจาก Google Sheet...';
 
     try {
         const data = await requestApi('overview', {
@@ -377,22 +371,95 @@ async function loadDashboardData() {
         });
 
         if (data && data.status === 'success') {
-            currentOverviewData = data;
+            cachedOverviewData = data;
+
+            // Track latest date
+            if (data.latest_date) {
+                latestDateAvailable = data.latest_date;
+            }
+
+            // Cache Daily Trend
+            if (data.daily_trend && Array.isArray(data.daily_trend) && data.daily_trend.length > 0) {
+                cachedDailyTrend = data.daily_trend;
+                if (!latestDateAvailable) {
+                    latestDateAvailable = cachedDailyTrend[cachedDailyTrend.length - 1].date;
+                }
+            }
+
+            // Cache Patients dataset
+            if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                cachedPatientsList = data.data;
+            }
+
+            // Render Executive Components
             renderKPIs(data.kpi);
             renderShiftKPIs(data.shift_breakdown, data.kpi);
             renderDateLabel(data.period);
             renderOverviewCharts(data);
             renderTopItems(data.top_items);
-            safeSetText('tabPatientBadge', (data.kpi ? (data.kpi.total_orders || 0) : 0).toLocaleString());
+
+            // Update badge on Patient tab
+            const patientCount = data.kpi ? (data.kpi.total_orders || data.kpi.total_requests || 0) : 0;
+            safeSetText('tabPatientBadge', patientCount.toLocaleString());
+
+            // Smart Date Fallback Banner: When today has 0 records but sheet has earlier records
+            handleDateFallbackBanner(data);
+
+        } else if (data && data.status === 'empty') {
+            handleEmptyState();
         } else {
-            alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + (data ? data.message : 'ไม่สามารถเชื่อมต่อระบบได้'));
+            throw new Error((data && data.message) ? data.message : 'ไม่สามารถดึงข้อมูลภาพรวมได้');
         }
     } catch (err) {
         console.error('Error loading dashboard overview:', err);
-        alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message);
+        showConnectionNotice(err.message);
     } finally {
+        isFetching = false;
         if (icon) icon.classList.remove('animate-spin');
         if (window.lucide) lucide.createIcons();
+    }
+}
+
+// Smart Fallback Banner Handler
+function handleDateFallbackBanner(data) {
+    const banner = document.getElementById('dateNoticeBanner');
+    if (!banner) return;
+
+    const totalOrders = (data.kpi && data.kpi.total_orders) ? data.kpi.total_orders : 0;
+    const totalRequests = (data.kpi && data.kpi.total_requests) ? data.kpi.total_requests : 0;
+
+    if (totalOrders === 0 && totalRequests === 0 && latestDateAvailable && latestDateAvailable !== currentStartDate) {
+        banner.classList.remove('hidden');
+        safeSetText('dateNoticeText', `ยังไม่มีรายการตรวจของวันที่ ${formatThaiDate(currentStartDate)} ใน Google Sheet`);
+        safeSetText('latestDateLabel', formatThaiDate(latestDateAvailable));
+    } else {
+        banner.classList.add('hidden');
+    }
+}
+
+function handleEmptyState() {
+    renderKPIs({ total_orders: 0, total_requests: 0, unconfirmed_orders: 0, total_patients: 0, opd_patients: 0, ipd_patients: 0, total_revenue: 0, opd_orders: 0, ipd_orders: 0, read_films: 0, unread_films: 0, read_rate: 0, avg_wait_minutes: 0, wait_under_30_rate: 0 });
+    renderDateLabel({ start_date: currentStartDate, end_date: currentEndDate, is_single_day: currentStartDate === currentEndDate });
+}
+
+function showConnectionNotice(errMsg) {
+    const dateLabelEl = document.getElementById('selectedDateLabel');
+    if (dateLabelEl) dateLabelEl.innerHTML = `<span class="text-rose-500 font-medium">เชื่อมต่อไม่สำเร็จ: ${errMsg}</span>`;
+    
+    // Auto-offer demo mode if user wants to view dashboard offline
+    const banner = document.getElementById('dateNoticeBanner');
+    if (banner) {
+        banner.classList.remove('hidden');
+        safeSetText('dateNoticeText', `ไม่สามารถเชื่อมต่อ Google Sheet ได้ (${errMsg})`);
+        const btn = document.getElementById('btnSwitchToLatestDate');
+        if (btn) {
+            btn.innerHTML = '<i data-lucide="play" class="w-3.5 h-3.5"></i> <span>เปิดโหมดตัวอย่าง (Demo)</span>';
+            btn.onclick = () => {
+                appConfig.dataMode = 'demo';
+                banner.classList.add('hidden');
+                loadDashboardData();
+            };
+        }
     }
 }
 
@@ -494,7 +561,7 @@ function renderOverviewCharts(data) {
 
     // A. Daily Trend Chart
     const elDailyTrend = document.getElementById('chartDailyTrend');
-    if (elDailyTrend && data.daily_trend && Array.isArray(data.daily_trend)) {
+    if (elDailyTrend && data.daily_trend && Array.isArray(data.daily_trend) && data.daily_trend.length > 0) {
         if (chartInstances.dailyTrend) chartInstances.dailyTrend.destroy();
         const ctxTrend = elDailyTrend.getContext('2d');
         chartInstances.dailyTrend = new Chart(ctxTrend, {
@@ -643,6 +710,9 @@ function renderOverviewCharts(data) {
                 cutout: '65%'
             }
         });
+
+        // Also populate Department Select Filter in Tab 4
+        populateDepartmentFilter(data.department_distribution);
     }
 
     // E. Insurance Distribution Pie Chart
@@ -670,6 +740,19 @@ function renderOverviewCharts(data) {
             }
         });
     }
+}
+
+function populateDepartmentFilter(depts) {
+    const sel = document.getElementById('filterDepartment');
+    if (!sel || sel.options.length > 2) return;
+    depts.forEach(d => {
+        if (d.name && d.name !== 'อื่นๆ') {
+            const opt = document.createElement('option');
+            opt.value = d.name;
+            opt.textContent = `${d.name} (${d.count})`;
+            sel.appendChild(opt);
+        }
+    });
 }
 
 // 15. Render Top 10 Examined Items
@@ -709,7 +792,14 @@ function renderTopItems(items) {
 async function loadDailyData() {
     const tbody = document.getElementById('dailyTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูลรายวัน...</td></tr>';
+
+    // Instant In-Memory Render: If we already have daily_trend cached
+    if (cachedDailyTrend.length > 0) {
+        renderDailyTable(cachedDailyTrend);
+        return;
+    }
+
+    tbody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูลสรุปรายวันจาก Google Sheet...</td></tr>';
 
     try {
         const data = await requestApi('daily', {
@@ -717,99 +807,120 @@ async function loadDailyData() {
             end_date: currentEndDate
         });
 
-        if (data && data.status === 'success') {
-            const rows = data.data || [];
-            if (rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>';
-                return;
-            }
-
-            let sumOrders = 0, sumRequests = 0, sumUnconfirmed = 0, sumPatients = 0, sumRev = 0;
-            let sumNight = 0, sumMorning = 0, sumAfternoon = 0, sumOpd = 0, sumIpd = 0;
-            let sumRead = 0, sumUnread = 0;
-            let totalWaitMins = 0, totalWaitCount = 0;
-
-            tbody.innerHTML = rows.map(r => {
-                const orders = r.total_orders || 0;
-                const requests = r.total_requests || orders;
-                const unconfirmed = r.unconfirmed_orders || Math.max(0, requests - orders);
-                const patients = r.total_patients || 0;
-                const revenue = r.total_revenue || 0;
-                const night = r.night_orders || 0;
-                const morning = r.morning_orders || 0;
-                const afternoon = r.afternoon_orders || 0;
-                const opd = r.opd_orders || 0;
-                const ipd = r.ipd_orders || 0;
-                const read = r.read_films || 0;
-                const unread = r.unread_films || Math.max(0, orders - read);
-                const waitAvg = r.avg_wait_minutes !== undefined && r.avg_wait_minutes !== null ? r.avg_wait_minutes : '-';
-
-                sumOrders += orders;
-                sumRequests += requests;
-                sumUnconfirmed += unconfirmed;
-                sumPatients += patients;
-                sumRev += revenue;
-                sumNight += night;
-                sumMorning += morning;
-                sumAfternoon += afternoon;
-                sumOpd += opd;
-                sumIpd += ipd;
-                sumRead += read;
-                sumUnread += unread;
-
-                if (typeof r.avg_wait_minutes === 'number') {
-                    totalWaitMins += (r.avg_wait_minutes * orders);
-                    totalWaitCount += orders;
-                }
-
-                const waitBadge = getWaitBadge(waitAvg);
-
-                return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-750/50 transition">
-                        <td class="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">${r.thai_date || formatThaiDate(r.date)}</td>
-                        <td class="px-3 py-2.5 text-right font-bold text-cyan-700 dark:text-cyan-400">${orders.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">${patients.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-center"><span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${waitBadge.badge}">${waitBadge.text}</span></td>
-                        <td class="px-3 py-2.5 text-center font-semibold text-purple-700 dark:text-purple-300 bg-purple-50/20">${night.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-center font-semibold text-amber-700 dark:text-amber-300 bg-amber-50/20">${morning.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-center font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/20">${afternoon.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-right text-slate-600 dark:text-slate-400">${opd}/${ipd}</td>
-                        <td class="px-3 py-2.5 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">฿${revenue.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-center text-emerald-600 dark:text-emerald-400 font-bold">${read.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-center text-amber-600 dark:text-amber-400 font-bold">${unread.toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-center">
-                            <button onclick="viewDateInPatients('${r.date}')" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 text-cyan-700 dark:text-cyan-300 font-medium transition">
-                                ดูคนไข้
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            const grandAvgWait = totalWaitCount > 0 ? (totalWaitMins / totalWaitCount).toFixed(1) : '-';
-            const tfoot = document.getElementById('dailyTableFoot');
-            if (tfoot) {
-                tfoot.innerHTML = `
-                    <tr class="bg-slate-100 dark:bg-slate-750 text-slate-900 dark:text-white">
-                        <td class="px-3 py-3 text-center">รวมทั้งหมด (${rows.length} วัน)</td>
-                        <td class="px-3 py-3 text-right text-cyan-700 dark:text-cyan-300">${sumOrders.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-right">${sumPatients.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-center text-teal-700 dark:text-teal-300">${grandAvgWait} นาที</td>
-                        <td class="px-3 py-3 text-center text-purple-700 dark:text-purple-300">${sumNight.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-center text-amber-700 dark:text-amber-300">${sumMorning.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-center text-blue-700 dark:text-blue-300">${sumAfternoon.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-right">${sumOpd}/${sumIpd}</td>
-                        <td class="px-3 py-3 text-right font-mono">฿${sumRev.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-center text-emerald-600">${sumRead.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-center text-amber-600">${sumUnread.toLocaleString()}</td>
-                        <td class="px-3 py-3 text-center">-</td>
-                    </tr>
-                `;
+        if (data && data.status === 'success' && Array.isArray(data.data) && data.data.length > 0) {
+            cachedDailyTrend = data.data;
+            renderDailyTable(data.data);
+        } else {
+            // If remote returned empty or not implemented, synthesize from overview
+            if (cachedOverviewData && cachedOverviewData.daily_trend && cachedOverviewData.daily_trend.length > 0) {
+                renderDailyTable(cachedOverviewData.daily_trend);
+            } else {
+                tbody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลรายวันในช่วงเวลาที่เลือก</td></tr>';
             }
         }
     } catch (err) {
         console.error('Error in loadDailyData:', err);
-        tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-rose-500">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
+        if (cachedOverviewData && cachedOverviewData.daily_trend) {
+            renderDailyTable(cachedOverviewData.daily_trend);
+        } else {
+            tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-rose-500">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
+        }
+    }
+}
+
+function renderDailyTable(rows) {
+    const tbody = document.getElementById('dailyTableBody');
+    if (!tbody) return;
+
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>';
+        return;
+    }
+
+    // Sort descending by date
+    const sorted = rows.slice().sort((a, b) => b.date.localeCompare(a.date));
+
+    let sumOrders = 0, sumRequests = 0, sumUnconfirmed = 0, sumPatients = 0, sumRev = 0;
+    let sumNight = 0, sumMorning = 0, sumAfternoon = 0, sumOpd = 0, sumIpd = 0;
+    let sumRead = 0, sumUnread = 0;
+    let totalWaitMins = 0, totalWaitCount = 0;
+
+    tbody.innerHTML = sorted.map(r => {
+        const orders = r.orders !== undefined ? r.orders : (r.total_orders || 0);
+        const requests = r.requests !== undefined ? r.requests : (r.total_requests || orders);
+        const unconfirmed = r.unconfirmed !== undefined ? r.unconfirmed : Math.max(0, requests - orders);
+        const patients = r.patients !== undefined ? r.patients : (r.total_patients || 0);
+        const revenue = r.revenue !== undefined ? r.revenue : (r.total_revenue || 0);
+        const night = r.night !== undefined ? r.night : (r.night_orders || 0);
+        const morning = r.morning !== undefined ? r.morning : (r.morning_orders || 0);
+        const afternoon = r.afternoon !== undefined ? r.afternoon : (r.afternoon_orders || 0);
+        const opd = r.opd !== undefined ? r.opd : (r.opd_orders || 0);
+        const ipd = r.ipd !== undefined ? r.ipd : (r.ipd_orders || 0);
+        const read = r.read_films !== undefined ? r.read_films : 0;
+        const unread = r.unread_films !== undefined ? r.unread_films : Math.max(0, orders - read);
+        const waitAvg = r.avg_wait_minutes !== undefined && r.avg_wait_minutes !== null ? r.avg_wait_minutes : '-';
+
+        sumOrders += orders;
+        sumRequests += requests;
+        sumUnconfirmed += unconfirmed;
+        sumPatients += patients;
+        sumRev += revenue;
+        sumNight += night;
+        sumMorning += morning;
+        sumAfternoon += afternoon;
+        sumOpd += opd;
+        sumIpd += ipd;
+        sumRead += read;
+        sumUnread += unread;
+
+        if (typeof r.avg_wait_minutes === 'number') {
+            totalWaitMins += (r.avg_wait_minutes * orders);
+            totalWaitCount += orders;
+        }
+
+        const waitBadge = getWaitBadge(waitAvg);
+
+        return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-750/50 transition">
+                <td class="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">${formatThaiDate(r.date)}</td>
+                <td class="px-3 py-2.5 text-right font-bold text-cyan-700 dark:text-cyan-400">${orders.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">${patients.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-center"><span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${waitBadge.badge}">${waitBadge.text}</span></td>
+                <td class="px-3 py-2.5 text-center font-semibold text-purple-700 dark:text-purple-300 bg-purple-50/20">${night.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-center font-semibold text-amber-700 dark:text-amber-300 bg-amber-50/20">${morning.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-center font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/20">${afternoon.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-right text-slate-600 dark:text-slate-400">${opd}/${ipd}</td>
+                <td class="px-3 py-2.5 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">฿${revenue.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-center text-emerald-600 dark:text-emerald-400 font-bold">${read.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-center text-amber-600 dark:text-amber-400 font-bold">${unread.toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-center">
+                    <button onclick="viewDateInPatients('${r.date}')" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 dark:hover:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 font-medium transition shadow-xs">
+                        ดูคนไข้
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    const grandAvgWait = totalWaitCount > 0 ? (totalWaitMins / totalWaitCount).toFixed(1) : '-';
+    const tfoot = document.getElementById('dailyTableFoot');
+    if (tfoot) {
+        tfoot.innerHTML = `
+            <tr class="bg-slate-100 dark:bg-slate-750 text-slate-900 dark:text-white font-bold">
+                <td class="px-3 py-3 text-center">รวมทั้งหมด (${sorted.length} วัน)</td>
+                <td class="px-3 py-3 text-right text-cyan-700 dark:text-cyan-300">${sumOrders.toLocaleString()}</td>
+                <td class="px-3 py-3 text-right">${sumPatients.toLocaleString()}</td>
+                <td class="px-3 py-3 text-center text-teal-700 dark:text-teal-300">${grandAvgWait} นาที</td>
+                <td class="px-3 py-3 text-center text-purple-700 dark:text-purple-300">${sumNight.toLocaleString()}</td>
+                <td class="px-3 py-3 text-center text-amber-700 dark:text-amber-300">${sumMorning.toLocaleString()}</td>
+                <td class="px-3 py-3 text-center text-blue-700 dark:text-blue-300">${sumAfternoon.toLocaleString()}</td>
+                <td class="px-3 py-3 text-right">${sumOpd}/${sumIpd}</td>
+                <td class="px-3 py-3 text-right font-mono">฿${sumRev.toLocaleString()}</td>
+                <td class="px-3 py-3 text-center text-emerald-600">${sumRead.toLocaleString()}</td>
+                <td class="px-3 py-3 text-center text-amber-600">${sumUnread.toLocaleString()}</td>
+                <td class="px-3 py-3 text-center">-</td>
+            </tr>
+        `;
     }
 }
 
@@ -825,75 +936,130 @@ function viewDateInPatients(dateStr) {
 async function loadMonthlyData() {
     const tbody = document.getElementById('monthlyTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูลรายเดือน...</td></tr>';
 
     const yearSelect = document.getElementById('monthlyYearSelect');
     const selectedYear = yearSelect ? yearSelect.value : new Date().getFullYear();
 
+    // In-Memory Monthly Synthesis: Calculate from cachedDailyTrend
+    if (cachedDailyTrend.length > 0) {
+        const synthesizedMonths = synthesizeMonthlyFromDaily(cachedDailyTrend, selectedYear);
+        renderMonthlyTable(synthesizedMonths, selectedYear);
+        return;
+    }
+
+    tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูลสรุปรายเดือน...</td></tr>';
+
     try {
         const data = await requestApi('monthly', { year: selectedYear });
-
-        if (data && data.status === 'success') {
-            const months = data.data || [];
-            let sumOrders = 0, sumPatients = 0, sumOpd = 0, sumIpd = 0, sumRev = 0, sumRead = 0, sumUnread = 0;
-
-            tbody.innerHTML = months.map(m => {
-                const orders = m.total_orders || 0;
-                const patients = m.total_patients || 0;
-                const opd = m.opd_orders || 0;
-                const ipd = m.ipd_orders || 0;
-                const revenue = m.total_revenue || 0;
-                const read = m.read_films || 0;
-                const unread = m.unread_films || Math.max(0, orders - read);
-                const rate = orders > 0 ? Math.round((read / orders) * 100) : 0;
-
-                sumOrders += orders;
-                sumPatients += patients;
-                sumOpd += opd;
-                sumIpd += ipd;
-                sumRev += revenue;
-                sumRead += read;
-                sumUnread += unread;
-
-                return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-750/50 transition">
-                        <td class="px-4 py-3 text-center font-medium text-slate-800 dark:text-slate-200">${m.month_name}</td>
-                        <td class="px-4 py-3 text-right font-bold text-cyan-700 dark:text-cyan-400">${orders.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">${patients.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-400">${opd.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-400">${ipd.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">฿${revenue.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center text-emerald-600 font-bold">${read.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center text-amber-600 font-bold">${unread.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center font-semibold">${rate}%</td>
-                    </tr>
-                `;
-            }).join('');
-
-            const grandRate = sumOrders > 0 ? Math.round((sumRead / sumOrders) * 100) : 0;
-            const tfoot = document.getElementById('monthlyTableFoot');
-            if (tfoot) {
-                tfoot.innerHTML = `
-                    <tr class="bg-slate-100 dark:bg-slate-750 text-slate-900 dark:text-white">
-                        <td class="px-4 py-3 text-center">รวมทั้งปี (${selectedYear})</td>
-                        <td class="px-4 py-3 text-right text-cyan-700 dark:text-cyan-300">${sumOrders.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right">${sumPatients.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right">${sumOpd.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right">${sumIpd.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right font-mono">฿${sumRev.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center text-emerald-600">${sumRead.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center text-amber-600">${sumUnread.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center">${grandRate}%</td>
-                    </tr>
-                `;
-            }
-
-            renderMonthlyChart(months);
+        if (data && data.status === 'success' && Array.isArray(data.data)) {
+            renderMonthlyTable(data.data, selectedYear);
+        } else {
+            const synthesized = synthesizeMonthlyFromDaily(cachedDailyTrend, selectedYear);
+            renderMonthlyTable(synthesized, selectedYear);
         }
     } catch (err) {
         console.error('Error in loadMonthlyData:', err);
-        tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-rose-500">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
+        const synthesized = synthesizeMonthlyFromDaily(cachedDailyTrend, selectedYear);
+        renderMonthlyTable(synthesized, selectedYear);
     }
+}
+
+function synthesizeMonthlyFromDaily(dailyRows, yearStr) {
+    const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const thYear = parseInt(yearStr, 10) + 543;
+    const months = [];
+
+    for (let m = 1; m <= 12; m++) {
+        const mKey = `${yearStr}-${String(m).padStart(2, '0')}`;
+        let mOrders = 0, mPatients = 0, mOpd = 0, mIpd = 0, mRev = 0, mRead = 0, mUnread = 0;
+
+        dailyRows.forEach(d => {
+            if (d.date && d.date.indexOf(mKey) === 0) {
+                const ord = d.orders !== undefined ? d.orders : (d.total_orders || 0);
+                mOrders += ord;
+                mPatients += (d.patients !== undefined ? d.patients : (d.total_patients || 0));
+                mOpd += (d.opd !== undefined ? d.opd : (d.opd_orders || 0));
+                mIpd += (d.ipd !== undefined ? d.ipd : (d.ipd_orders || 0));
+                mRev += (d.revenue !== undefined ? d.revenue : (d.total_revenue || 0));
+                mRead += (d.read_films !== undefined ? d.read_films : 0);
+                mUnread += (d.unread_films !== undefined ? d.unread_films : 0);
+            }
+        });
+
+        months.push({
+            month_no: m,
+            month_key: mKey,
+            month_name: `${monthNames[m - 1]} ${thYear}`,
+            total_orders: mOrders,
+            total_patients: mPatients,
+            opd_orders: mOpd,
+            ipd_orders: mIpd,
+            read_films: mRead,
+            unread_films: mUnread,
+            total_revenue: mRev
+        });
+    }
+    return months;
+}
+
+function renderMonthlyTable(months, selectedYear) {
+    const tbody = document.getElementById('monthlyTableBody');
+    if (!tbody || !months) return;
+
+    let sumOrders = 0, sumPatients = 0, sumOpd = 0, sumIpd = 0, sumRev = 0, sumRead = 0, sumUnread = 0;
+
+    tbody.innerHTML = months.map(m => {
+        const orders = m.total_orders || 0;
+        const patients = m.total_patients || 0;
+        const opd = m.opd_orders || 0;
+        const ipd = m.ipd_orders || 0;
+        const revenue = m.total_revenue || 0;
+        const read = m.read_films || 0;
+        const unread = m.unread_films || Math.max(0, orders - read);
+        const rate = orders > 0 ? Math.round((read / orders) * 100) : 0;
+
+        sumOrders += orders;
+        sumPatients += patients;
+        sumOpd += opd;
+        sumIpd += ipd;
+        sumRev += revenue;
+        sumRead += read;
+        sumUnread += unread;
+
+        return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-750/50 transition">
+                <td class="px-4 py-3 text-center font-medium text-slate-800 dark:text-slate-200">${m.month_name}</td>
+                <td class="px-4 py-3 text-right font-bold text-cyan-700 dark:text-cyan-400">${orders.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">${patients.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-400">${opd.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-400">${ipd.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">฿${revenue.toLocaleString()}</td>
+                <td class="px-4 py-3 text-center text-emerald-600 font-bold">${read.toLocaleString()}</td>
+                <td class="px-4 py-3 text-center text-amber-600 font-bold">${unread.toLocaleString()}</td>
+                <td class="px-4 py-3 text-center font-semibold">${rate}%</td>
+            </tr>
+        `;
+    }).join('');
+
+    const grandRate = sumOrders > 0 ? Math.round((sumRead / sumOrders) * 100) : 0;
+    const tfoot = document.getElementById('monthlyTableFoot');
+    if (tfoot) {
+        tfoot.innerHTML = `
+            <tr class="bg-slate-100 dark:bg-slate-750 text-slate-900 dark:text-white font-bold">
+                <td class="px-4 py-3 text-center">รวมทั้งปี (${selectedYear})</td>
+                <td class="px-4 py-3 text-right text-cyan-700 dark:text-cyan-300">${sumOrders.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right">${sumPatients.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right">${sumOpd.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right">${sumIpd.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right font-mono">฿${sumRev.toLocaleString()}</td>
+                <td class="px-4 py-3 text-center text-emerald-600">${sumRead.toLocaleString()}</td>
+                <td class="px-4 py-3 text-center text-amber-600">${sumUnread.toLocaleString()}</td>
+                <td class="px-4 py-3 text-center">${grandRate}%</td>
+            </tr>
+        `;
+    }
+
+    renderMonthlyChart(months);
 }
 
 function renderMonthlyChart(months) {
@@ -939,19 +1105,26 @@ function renderMonthlyChart(months) {
     });
 }
 
-// 18. Load Patients Master Table (Tab 4, 17 Columns)
+// 18. Load Patients Master Table (Tab 4, 17 Columns with Client-Side Instant Filtering)
 async function loadPatients(page = 1) {
     patientCurrentPage = page;
     const tbody = document.getElementById('patientTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="17" class="px-4 py-8 text-center text-slate-400">กำลังโหลดรายชื่อผู้ป่วย...</td></tr>';
 
-    const search = document.getElementById('patientSearchInput')?.value || '';
+    const search = (document.getElementById('patientSearchInput')?.value || '').trim().toLowerCase();
     const examStatus = document.getElementById('filterExamStatus')?.value || 'all';
     const department = document.getElementById('filterDepartment')?.value || 'all';
     const filmStatus = document.getElementById('filterFilmStatus')?.value || 'all';
     const shift = document.getElementById('filterShift')?.value || 'all';
     const limit = parseInt(document.getElementById('filterLimit')?.value || '25', 10);
+
+    // If cached in memory, perform instant client-side filter and pagination (0 ms)
+    if (cachedPatientsList.length > 0) {
+        renderFilteredPatients(cachedPatientsList, page, limit, { search, examStatus, department, filmStatus, shift });
+        return;
+    }
+
+    tbody.innerHTML = '<tr><td colspan="17" class="px-4 py-8 text-center text-slate-400">กำลังโหลดรายชื่อผู้ป่วยจาก Google Sheet...</td></tr>';
 
     try {
         const data = await requestApi('patients', {
@@ -966,92 +1139,146 @@ async function loadPatients(page = 1) {
             limit: limit
         });
 
-        if (data && data.status === 'success') {
-            currentRawPatients = data.data || [];
-            if (currentRawPatients.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="17" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลผู้ป่วยตามเงื่อนไขที่ระบุ</td></tr>';
-                safeSetText('patientPaginationInfo', 'แสดง 0 รายการ');
-                const controls = document.getElementById('patientPaginationControls');
-                if (controls) controls.innerHTML = '';
-                return;
-            }
-
-            tbody.innerHTML = currentRawPatients.map(p => {
-                const ptTypeBadge = p.pt_type === 'IPD'
-                    ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">IPD</span>'
-                    : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300">OPD</span>';
-
-                const filmBadge = (p.confirm_read_film === 'Y' || String(p.confirm_read_film).indexOf('อ่าน') !== -1)
-                    ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">อ่านแล้ว</span>'
-                    : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">รออ่าน</span>';
-
-                const shiftCode = p.shift_code || 'morning';
-                const shiftIcon = shiftCode === 'night' ? '🌙' : (shiftCode === 'morning' ? '☀️' : '🌇');
-                const shiftBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${p.shift_badge || getShiftBadgeClass(shiftCode)}">${shiftIcon} ${p.shift_short || p.shift_name || 'เวร'}</span>`;
-
-                const confirmInfo = p.confirm_badge ? { label: p.confirm_label, badge: p.confirm_badge } : getConfirmBadge(p.confirm);
-                const confirmBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${confirmInfo.badge}">${confirmInfo.label}</span>`;
-
-                const waitInfo = p.wait_badge ? { text: p.wait_text, badge: p.wait_badge } : getWaitBadge(p.wait_minutes);
-                const waitBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${waitInfo.badge}">${waitInfo.text}</span>`;
-
-                const isConfirmed = p.confirm === 'Y' || p.confirm === undefined;
-                const priceClass = isConfirmed ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 line-through';
-
-                return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
-                        <td class="px-3 py-2.5 text-center text-slate-400">${p.no}</td>
-                        <td class="px-3 py-2.5 whitespace-nowrap">
-                            <div class="font-medium text-slate-800 dark:text-slate-200">${p.thai_request_date || formatThaiDate(p.request_date)}</div>
-                            <div class="text-[10px] text-slate-400 flex items-center gap-1">
-                                <i data-lucide="clock" class="w-3 h-3"></i> ${p.request_time} น.
-                            </div>
-                        </td>
-                        <td class="px-3 py-2.5 whitespace-nowrap">
-                            ${p.examined_date ? `
-                                <div class="font-medium text-slate-800 dark:text-slate-200">${p.thai_examined_date || formatThaiDate(p.examined_date)}</div>
-                                <div class="text-[10px] text-teal-600 dark:text-teal-400 flex items-center gap-1">
-                                    <i data-lucide="check" class="w-3 h-3"></i> ${p.examined_time} น.
-                                </div>
-                            ` : `
-                                <span class="text-slate-400 text-xs italic">-</span>
-                            `}
-                        </td>
-                        <td class="px-3 py-2.5 text-center whitespace-nowrap">${waitBadge}</td>
-                        <td class="px-3 py-2.5 text-center whitespace-nowrap">${confirmBadge}</td>
-                        <td class="px-3 py-2.5 text-center whitespace-nowrap">${shiftBadge}</td>
-                        <td class="px-3 py-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">${p.hn}</td>
-                        <td class="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">${p.pt_name}</td>
-                        <td class="px-3 py-2.5 text-center text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                            ${p.age_y !== null && p.age_y !== undefined ? p.age_y + ' ปี' : '-'} / ${p.sex_label || (p.sex == '1' ? 'ชาย' : 'หญิง')}
-                        </td>
-                        <td class="px-3 py-2.5 text-center">${ptTypeBadge}</td>
-                        <td class="px-3 py-2.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">${p.department_name || '-'}</td>
-                        <td class="px-3 py-2.5 font-medium text-cyan-700 dark:text-cyan-300 whitespace-nowrap" title="${p.xray_name}">${p.xray_name}</td>
-                        <td class="px-3 py-2.5 whitespace-nowrap">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-medium ${p.pttype_badge || 'bg-slate-100 text-slate-700'}">
-                                ${p.pttype_category || p.pttype_name || 'สิทธิทั่วไป'}
-                            </span>
-                        </td>
-                        <td class="px-3 py-2.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">${p.doctor_name || '-'}</td>
-                        <td class="px-3 py-2.5 text-right font-mono font-semibold whitespace-nowrap ${priceClass}">฿${Number(p.price || 0).toLocaleString()}</td>
-                        <td class="px-3 py-2.5 text-center whitespace-nowrap">${filmBadge}</td>
-                        <td class="px-3 py-2.5 text-center whitespace-nowrap">
-                            <button onclick="openPatientDetailModal('${p.xn || p.no}')" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 text-cyan-700 dark:text-cyan-300 font-medium transition">
-                                ดูข้อมูล
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
+        if (data && data.status === 'success' && Array.isArray(data.data) && data.data.length > 0) {
+            renderPatientRows(data.data);
             renderPagination(data);
-            if (window.lucide) lucide.createIcons();
+        } else {
+            tbody.innerHTML = '<tr><td colspan="17" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลผู้ป่วยตามเงื่อนไขที่ระบุ</td></tr>';
+            safeSetText('patientPaginationInfo', 'แสดง 0 รายการ');
+            const controls = document.getElementById('patientPaginationControls');
+            if (controls) controls.innerHTML = '';
         }
     } catch (err) {
         console.error('Error in loadPatients:', err);
         tbody.innerHTML = `<tr><td colspan="17" class="px-4 py-8 text-center text-rose-500">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
     }
+}
+
+function renderFilteredPatients(list, page, limit, filters) {
+    const tbody = document.getElementById('patientTableBody');
+    if (!tbody) return;
+
+    let filtered = list.filter(p => {
+        // Date range filter
+        if (currentStartDate && p.request_date && p.request_date < currentStartDate) return false;
+        if (currentEndDate && p.request_date && p.request_date > currentEndDate) return false;
+
+        // Exam status filter
+        if (filters.examStatus === 'confirmed' && p.confirm !== 'Y') return false;
+        if (filters.examStatus === 'unconfirmed' && p.confirm === 'Y') return false;
+
+        // Shift filter
+        if (filters.shift !== 'all' && p.shift_code !== filters.shift) return false;
+
+        // Department filter
+        if (filters.department !== 'all' && p.department_name !== filters.department) return false;
+
+        // Film status filter
+        if (filters.filmStatus === 'read' && p.confirm_read_film !== 'Y') return false;
+        if (filters.filmStatus === 'unread' && p.confirm_read_film === 'Y') return false;
+
+        // Search filter
+        if (filters.search) {
+            const s = filters.search;
+            const fullStr = `${p.hn} ${p.vn || ''} ${p.pt_name} ${p.xray_name} ${p.doctor_name || ''} ${p.department_name || ''}`.toLowerCase();
+            if (fullStr.indexOf(s) === -1) return false;
+        }
+
+        return true;
+    });
+
+    const totalRows = filtered.length;
+    if (totalRows === 0) {
+        tbody.innerHTML = '<tr><td colspan="17" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลผู้ป่วยตามเงื่อนไขที่ระบุ</td></tr>';
+        safeSetText('patientPaginationInfo', 'แสดง 0 รายการ');
+        const controls = document.getElementById('patientPaginationControls');
+        if (controls) controls.innerHTML = '';
+        return;
+    }
+
+    const totalPages = Math.ceil(totalRows / limit) || 1;
+    const currPage = Math.min(page, totalPages);
+    const startIdx = (currPage - 1) * limit;
+    const pageRows = filtered.slice(startIdx, startIdx + limit);
+
+    renderPatientRows(pageRows);
+    renderPagination({ page: currPage, limit: limit, total_rows: totalRows, total_pages: totalPages });
+}
+
+function renderPatientRows(rows) {
+    const tbody = document.getElementById('patientTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = rows.map((p, idx) => {
+        const ptTypeBadge = p.pt_type === 'IPD'
+            ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">IPD</span>'
+            : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300">OPD</span>';
+
+        const filmBadge = (p.confirm_read_film === 'Y' || String(p.confirm_read_film).indexOf('อ่าน') !== -1)
+            ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">อ่านแล้ว</span>'
+            : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">รออ่าน</span>';
+
+        const shiftCode = p.shift_code || 'morning';
+        const shiftIcon = shiftCode === 'night' ? '🌙' : (shiftCode === 'morning' ? '☀️' : '🌇');
+        const shiftBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${getShiftBadgeClass(shiftCode)}">${shiftIcon} ${p.shift_short || p.shift_name || 'เวร'}</span>`;
+
+        const confirmInfo = getConfirmBadge(p.confirm);
+        const confirmBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${confirmInfo.badge}">${confirmInfo.label}</span>`;
+
+        const waitInfo = getWaitBadge(p.wait_minutes);
+        const waitBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${waitInfo.badge}">${waitInfo.text}</span>`;
+
+        const isConfirmed = p.confirm === 'Y';
+        const priceClass = isConfirmed ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 line-through';
+
+        return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
+                <td class="px-3 py-2.5 text-center text-slate-400">${p.no || (idx + 1)}</td>
+                <td class="px-3 py-2.5 whitespace-nowrap">
+                    <div class="font-medium text-slate-800 dark:text-slate-200">${p.thai_request_date || formatThaiDate(p.request_date)}</div>
+                    <div class="text-[10px] text-slate-400 flex items-center gap-1">
+                        <i data-lucide="clock" class="w-3 h-3"></i> ${p.request_time || '-'} น.
+                    </div>
+                </td>
+                <td class="px-3 py-2.5 whitespace-nowrap">
+                    ${p.examined_date ? `
+                        <div class="font-medium text-slate-800 dark:text-slate-200">${p.thai_examined_date || formatThaiDate(p.examined_date)}</div>
+                        <div class="text-[10px] text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                            <i data-lucide="check" class="w-3 h-3"></i> ${p.examined_time || '-'} น.
+                        </div>
+                    ` : `
+                        <span class="text-slate-400 text-xs italic">-</span>
+                    `}
+                </td>
+                <td class="px-3 py-2.5 text-center whitespace-nowrap">${waitBadge}</td>
+                <td class="px-3 py-2.5 text-center whitespace-nowrap">${confirmBadge}</td>
+                <td class="px-3 py-2.5 text-center whitespace-nowrap">${shiftBadge}</td>
+                <td class="px-3 py-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">${p.hn || '-'}</td>
+                <td class="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">${p.pt_name || '-'}</td>
+                <td class="px-3 py-2.5 text-center text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                    ${p.age_y !== null && p.age_y !== undefined ? p.age_y + ' ปี' : '-'} / ${p.sex_label || (p.sex == '1' ? 'ชาย' : (p.sex == '2' ? 'หญิง' : '-'))}
+                </td>
+                <td class="px-3 py-2.5 text-center">${ptTypeBadge}</td>
+                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">${p.department_name || '-'}</td>
+                <td class="px-3 py-2.5 font-medium text-cyan-700 dark:text-cyan-300 whitespace-nowrap" title="${p.xray_name}">${p.xray_name || '-'}</td>
+                <td class="px-3 py-2.5 whitespace-nowrap">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                        ${p.pttype_category || p.pttype_name || 'สิทธิทั่วไป'}
+                    </span>
+                </td>
+                <td class="px-3 py-2.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">${p.doctor_name || '-'}</td>
+                <td class="px-3 py-2.5 text-right font-mono font-semibold whitespace-nowrap ${priceClass}">฿${Number(p.price || 0).toLocaleString()}</td>
+                <td class="px-3 py-2.5 text-center whitespace-nowrap">${filmBadge}</td>
+                <td class="px-3 py-2.5 text-center whitespace-nowrap">
+                    <button onclick="openPatientDetailModal('${p.xn || p.no || idx}')" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-50 dark:bg-cyan-950/50 hover:bg-cyan-100 dark:hover:bg-cyan-900 text-cyan-700 dark:text-cyan-300 font-medium transition shadow-xs">
+                        ดูข้อมูล
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
 }
 
 function renderPagination(data) {
@@ -1069,336 +1296,110 @@ function renderPagination(data) {
     let btns = '';
 
     if (page > 1) {
-        btns += `<button onclick="loadPatients(${page - 1})" class="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100">ก่อนหน้า</button>`;
+        btns += `<button onclick="loadPatients(${page - 1})" class="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs">ก่อนหน้า</button>`;
     }
 
-    const maxP = Math.min(totalPages, 5);
     let startP = Math.max(1, page - 2);
     let endP = Math.min(totalPages, startP + 4);
     if (endP - startP < 4) startP = Math.max(1, endP - 4);
 
     for (let i = startP; i <= endP; i++) {
-        const active = i === page ? 'bg-cyan-600 text-white font-bold' : 'border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100';
+        const active = i === page ? 'bg-cyan-600 text-white font-bold' : 'border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700';
         btns += `<button onclick="loadPatients(${i})" class="w-8 h-8 rounded-lg text-xs flex items-center justify-center ${active}">${i}</button>`;
     }
 
     if (page < totalPages) {
-        btns += `<button onclick="loadPatients(${page + 1})" class="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100">ถัดไป</button>`;
+        btns += `<button onclick="loadPatients(${page + 1})" class="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs">ถัดไป</button>`;
     }
 
     container.innerHTML = btns;
 }
 
-// 19. Modals: Patient Detail Modal
-async function openPatientDetailModal(xn) {
+// 19. Patient Detail Modal
+function openPatientDetailModal(idKey) {
+    let p = cachedPatientsList.find(item => String(item.xn) === String(idKey) || String(item.no) === String(idKey));
+    if (!p && cachedPatientsList.length > 0) {
+        p = cachedPatientsList[0];
+    }
+    if (!p) return;
+
     openModal('modalPatientDetail');
 
-    try {
-        let pData = null;
-        if (detectedMode === 'local') {
-            const res = await fetch(`api.php?action=patient_detail&xn=${xn}`);
-            const json = await res.json();
-            if (json && json.status === 'success') pData = json;
-        }
+    safeSetText('modalPtName', p.pt_name || '-');
+    safeSetText('modalPtHn', p.hn || '-');
+    safeSetText('modalPtVn', p.vn || p.an || '-');
+    safeSetText('modalPtAge', `${p.age_y || '-'} ปี / ${p.sex_label || (p.sex == '1' ? 'ชาย' : 'หญิง')}`);
+    safeSetText('modalPttypeName', p.pttype_name || '-');
+    safeSetText('modalPttypeCategory', p.pttype_category || '-');
+    safeSetText('modalDepartment', p.department_name || '-');
+    safeSetText('modalDoctorName', p.doctor_name || '-');
+    safeSetText('modalDiagnosis', p.pdx_name || p.clinical_diagnosis || p.pdx || '-');
+    safeSetText('modalXrayName', p.xray_name || '-');
+    safeSetText('modalPrice', '฿' + Number(p.price || 0).toLocaleString());
 
-        // Fallback or Cloud/Demo mode: find in currentRawPatients
-        if (!pData) {
-            const found = currentRawPatients.find(p => String(p.xn) === String(xn) || String(p.no) === String(xn));
-            if (found) {
-                pData = Object.assign({}, found);
-                pData.thai_request_date = formatThaiDate(pData.request_date);
-                pData.thai_examined_date = pData.examined_date ? formatThaiDate(pData.examined_date) : '';
-                pData.wait_text = pData.wait_minutes ? `${Math.round(pData.wait_minutes)} นาที` : '-';
-                pData.confirm_label = pData.confirm === 'Y' ? 'ตรวจแล้ว' : 'ไม่ได้ตรวจ';
-            }
-        }
+    const reqDt = `${p.thai_request_date || formatThaiDate(p.request_date)} เวลา ${p.request_time || '-'} น.`;
+    safeSetText('modalRequestDateTime', reqDt);
 
-        if (pData) {
-            safeSetText('modalPtName', pData.pt_name || '-');
-            safeSetText('modalPtHn', pData.hn || '-');
-            safeSetText('modalPtVn', pData.an || pData.vn || '-');
-            safeSetText('modalPtAge', `${pData.age_y || '-'} ปี / ${pData.sex_label || (pData.sex == '1' ? 'ชาย' : 'หญิง')}`);
-            safeSetText('modalPtTypeBadge', pData.pt_type || 'OPD');
-            safeSetText('modalXrayName', pData.xray_name || '-');
-            safeSetText('modalPrice', Number(pData.price || 0).toLocaleString());
-            safeSetText('modalPttypeName', pData.pttype_name || '-');
-            safeSetText('modalPttypeCategory', pData.pttype_category || '-');
+    const examDt = p.examined_date ? `${p.thai_examined_date || formatThaiDate(p.examined_date)} เวลา ${p.examined_time || '-'} น.` : 'ยังไม่ได้รับการตรวจ';
+    safeSetText('modalExaminedDateTime', examDt);
 
-            // 1. Request Info
-            safeSetText('modalRequestDateTime', `${pData.thai_request_date} เวลา ${pData.request_time} น.`);
-            safeSetText('modalDepartment', pData.department_name || '-');
-            safeSetText('modalDoctorName', pData.doctor_name || '-');
-
-            // 2. Examined Info & Waiting Time
-            const examDateTimeEl = document.getElementById('modalExaminedDateTime');
-            if (examDateTimeEl) {
-                if (pData.examined_date) {
-                    examDateTimeEl.textContent = `${pData.thai_examined_date} เวลา ${pData.examined_time} น.`;
-                } else {
-                    examDateTimeEl.textContent = 'ยังไม่มีบันทึกเวลาตรวจจริง';
-                }
-            }
-
-            const confirmBadgeEl = document.getElementById('modalConfirmBadge');
-            if (confirmBadgeEl) {
-                confirmBadgeEl.textContent = pData.confirm_label || (pData.confirm === 'Y' ? 'ตรวจแล้ว' : 'ไม่ได้ตรวจ');
-                confirmBadgeEl.className = `text-[10px] px-2 py-0.5 rounded-full font-bold ${pData.confirm_badge || (pData.confirm === 'Y' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800')}`;
-            }
-
-            const waitTimeBadgeEl = document.getElementById('modalWaitTimeBadge');
-            if (waitTimeBadgeEl) {
-                waitTimeBadgeEl.textContent = pData.wait_text || '-';
-                waitTimeBadgeEl.className = `px-2.5 py-0.5 rounded-full text-xs font-bold ${pData.wait_badge || 'bg-slate-100 text-slate-700'}`;
-            }
-
-            const shiftBadgeEl = document.getElementById('modalShiftBadge');
-            if (shiftBadgeEl) {
-                const shiftCode = pData.shift_code || 'morning';
-                const icon = shiftCode === 'night' ? '🌙' : (shiftCode === 'morning' ? '☀️' : '🌇');
-                shiftBadgeEl.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${getShiftBadgeClass(shiftCode)}">${icon} ${pData.shift_name || pData.shift_short || 'เวร'}</span>`;
-            }
-
-            safeSetText('modalDiagnosis', pData.clinical_diagnosis || pData.clinical_information || pData.pdx_name || 'ไม่มีบันทึกเพิ่มเติม');
-            
-            const isRead = pData.confirm_read_film === 'Y' || String(pData.confirm_read_film).indexOf('อ่าน') !== -1;
-            safeSetText('modalFilmStatusBadge', isRead ? 'อ่านผลเรียบร้อยแล้ว' : 'รออ่านผล');
-            safeSetText('modalReportDoctor', `แพทย์ผู้อ่านผล: ${pData.report_doctor_name || 'ยังไม่อ่านผล'}`);
-            safeSetText('modalReportText', pData.report_text || (isRead ? 'อ่านผลแล้ว (ไม่มีข้อความบันทึก)' : '(ยังไม่มีบันทึกผลการอ่านฟิล์ม)'));
-        }
-    } catch (err) {
-        console.error('Error opening patient detail modal:', err);
-    }
-}
-
-// 20. Modals: Export Modal & Clipboard Copy
-function openExportModal() {
-    openModal('modalExportSheet');
-    const pLabel = currentStartDate === currentEndDate ? formatThaiDate(currentStartDate) : `${formatThaiDate(currentStartDate)} ถึง ${formatThaiDate(currentEndDate)}`;
-    safeSetText('exportPeriodLabel', pLabel);
-    safeSetText('exportTotalRowsLabel', (currentOverviewData ? (currentOverviewData.kpi.total_orders || 0) : 0).toLocaleString() + ' รายการ');
-
-    const statusBadge = document.getElementById('exportUrlStatusBadge');
-    if (statusBadge) {
-        if (appConfig.webAppUrl && appConfig.webAppUrl.trim() !== '') {
-            statusBadge.textContent = 'พร้อมเชื่อมต่อ Google Apps Script';
-            statusBadge.className = 'px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300';
-        } else {
-            statusBadge.textContent = 'ยังไม่ได้ตั้งค่า Web App URL';
-            statusBadge.className = 'px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300';
-        }
+    const elWait = document.getElementById('modalWaitTimeBadge');
+    if (elWait) {
+        const wb = getWaitBadge(p.wait_minutes);
+        elWait.innerHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-bold ${wb.badge}">${wb.text}</span>`;
     }
 
-    const directSheetLink = document.getElementById('btnOpenSheetFromExport');
-    if (directSheetLink && appConfig.spreadsheetId) {
-        directSheetLink.href = `https://docs.google.com/spreadsheets/d/${appConfig.spreadsheetId}/edit`;
+    const elConfirm = document.getElementById('modalConfirmBadge');
+    if (elConfirm) {
+        const cb = getConfirmBadge(p.confirm);
+        elConfirm.innerHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold ${cb.badge}">${cb.label}</span>`;
     }
 
-    const statusBox = document.getElementById('exportStatusBox');
-    if (statusBox) statusBox.classList.add('hidden');
-}
-
-async function copyForGoogleSheet() {
-    const btn = document.getElementById('btnCopyForSheet');
-    const statusBox = document.getElementById('exportStatusBox');
-    const statusTitle = document.getElementById('exportStatusTitle');
-    const statusMsg = document.getElementById('exportStatusMsg');
-
-    if (btn) btn.disabled = true;
-    if (statusBox) {
-        statusBox.classList.remove('hidden', 'bg-rose-100', 'text-rose-800', 'bg-emerald-100', 'text-emerald-800');
-        statusBox.classList.add('bg-cyan-50', 'dark:bg-cyan-950/40', 'text-cyan-800', 'dark:text-cyan-200');
+    const elShift = document.getElementById('modalShiftBadge');
+    if (elShift) {
+        const sc = p.shift_code || 'morning';
+        elShift.innerHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-medium ${getShiftBadgeClass(sc)}">${p.shift_name || p.shift_short || 'เวร'}</span>`;
     }
-    if (statusTitle) statusTitle.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> กำลังเตรียมข้อมูลสำหรับ Google Sheets...';
-    if (statusMsg) statusMsg.textContent = 'กำลังแปลงข้อมูลเป็นตาราง TSV กรุณารอสักครู่';
+
+    const elPtType = document.getElementById('modalPtTypeBadge');
+    if (elPtType) {
+        elPtType.innerHTML = p.pt_type === 'IPD'
+            ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-purple-100 text-purple-800">IPD (ผู้ป่วยใน)</span>'
+            : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-cyan-100 text-cyan-800">OPD (ผู้ป่วยนอก)</span>';
+    }
+
+    const elFilm = document.getElementById('modalFilmStatusBadge');
+    if (elFilm) {
+        elFilm.innerHTML = (p.confirm_read_film === 'Y')
+            ? '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">อ่านผลแล้ว</span>'
+            : '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">รออ่านผล</span>';
+    }
+
+    safeSetText('modalReportDoctor', p.report_doctor_name || '-');
+    safeSetText('modalReportText', p.report_text || 'ยังไม่มีการบันทึกผลการอ่านฟิล์ม');
+
     if (window.lucide) lucide.createIcons();
-
-    try {
-        let tsv = '';
-        let totalCount = 0;
-
-        if (detectedMode === 'local') {
-            const examStatus = document.getElementById('filterExamStatus')?.value || 'all';
-            const res = await fetch(`api.php?action=export_tsv&start_date=${currentStartDate}&end_date=${currentEndDate}&exam_status=${examStatus}`);
-            const data = await res.json();
-            if (data && data.status === 'success' && data.tsv_data) {
-                tsv = data.tsv_data;
-                totalCount = data.total_rows;
-            }
-        }
-
-        // Fallback: build TSV client-side from patients dataset
-        if (!tsv) {
-            const list = currentRawPatients.length > 0 ? currentRawPatients : (await requestApi('patients', { limit: 1000 })).data || [];
-            const headers = [
-                'ลำดับ', 'วันที่สั่งตรวจ', 'เวลาสั่งตรวจ', 'วันที่ตรวจจริง', 'เวลาตรวจจริง', 'เวลารอคอย(นาที)', 'สถานะตรวจ',
-                'เวรตรวจ', 'HN', 'VN/AN', 'ประเภท', 'ชื่อ-นามสกุล', 'เพศ', 'อายุ', 'สิทธิการรักษา', 'กลุ่มสิทธิ',
-                'แผนกที่ส่ง', 'รายการตรวจ X-Ray', 'รหัสโรค', 'การวินิจฉัย', 'แพทย์ผู้สั่ง', 'ราคา', 'สถานะอ่านฟิล์ม'
-            ];
-            const lines = [headers.join('\t')];
-            list.forEach((p, i) => {
-                lines.push([
-                    i + 1,
-                    p.request_date || '',
-                    p.request_time || '',
-                    p.examined_date || '',
-                    p.examined_time || '',
-                    p.wait_minutes || '',
-                    p.confirm === 'Y' ? 'ตรวจสำเร็จ' : 'ไม่ได้ตรวจ',
-                    p.shift_name || p.shift_short || '',
-                    "'" + (p.hn || ''),
-                    "'" + (p.vn || p.an || ''),
-                    p.pt_type || 'OPD',
-                    p.pt_name || '',
-                    p.sex_label || (p.sex == '1' ? 'ชาย' : 'หญิง'),
-                    p.age_y || '',
-                    p.pttype_name || '',
-                    p.pttype_category || '',
-                    p.department_name || '',
-                    p.xray_name || '',
-                    p.pdx || '',
-                    p.pdx_name || p.clinical_diagnosis || '',
-                    p.doctor_name || '',
-                    p.price || 0,
-                    p.confirm_read_film === 'Y' ? 'อ่านผลแล้ว' : 'รออ่านผล'
-                ].join('\t'));
-            });
-            tsv = lines.join('\n');
-            totalCount = list.length;
-        }
-
-        await navigator.clipboard.writeText(tsv);
-
-        if (statusBox) {
-            statusBox.classList.remove('bg-cyan-50', 'text-cyan-800');
-            statusBox.classList.add('bg-emerald-100', 'dark:bg-emerald-950/50', 'text-emerald-800', 'dark:text-emerald-300');
-        }
-        if (statusTitle) statusTitle.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4"></i> คัดลอกข้อมูลเรียบร้อยแล้ว!';
-        if (statusMsg) {
-            statusMsg.innerHTML = `
-                คัดลอกข้อมูลทั้งหมด <b>${totalCount.toLocaleString()}</b> รายการลงคลิปบอร์ดแล้ว<br>
-                👉 <b>วิธีวางใน Google Sheet:</b> เปิด Google Sheet กดที่ช่อง <b>A1</b> แล้วกด <b>Ctrl + V</b> ข้อมูลจะลงตารางครบทุกคอลัมน์ทันที!
-            `;
-        }
-        if (btn) {
-            btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> <span>คัดลอกสำเร็จ!</span>';
-            setTimeout(() => {
-                btn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>คัดลอกข้อมูลทั้งหมด</span>';
-                if (window.lucide) lucide.createIcons();
-            }, 3000);
-        }
-    } catch (err) {
-        if (statusBox) {
-            statusBox.classList.remove('bg-cyan-50', 'text-cyan-800');
-            statusBox.classList.add('bg-rose-100', 'dark:bg-rose-950/50', 'text-rose-800', 'dark:text-rose-300');
-        }
-        if (statusTitle) statusTitle.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4"></i> เกิดข้อผิดพลาด';
-        if (statusMsg) statusMsg.textContent = err.message || err.toString();
-    } finally {
-        if (btn) btn.disabled = false;
-        if (window.lucide) lucide.createIcons();
-    }
 }
 
-async function executeGoogleSheetExport() {
-    const btn = document.getElementById('btnExecuteExport');
-    const statusBox = document.getElementById('exportStatusBox');
-    const statusTitle = document.getElementById('exportStatusTitle');
-    const statusMsg = document.getElementById('exportStatusMsg');
-
-    if (btn) btn.disabled = true;
-    if (statusBox) {
-        statusBox.classList.remove('hidden', 'bg-rose-100', 'text-rose-800', 'bg-emerald-100', 'text-emerald-800');
-        statusBox.classList.add('bg-cyan-50', 'dark:bg-cyan-950/40', 'text-cyan-800', 'dark:text-cyan-200');
-    }
-    if (statusTitle) statusTitle.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> กำลังส่งข้อมูลไปยัง Google Sheet...';
-    if (statusMsg) statusMsg.textContent = 'ระบบกำลังส่งคำสั่งบันทึกข้อมูล กรุณารอสักครู่ (ประมาณ 3-5 วินาที)';
-    if (window.lucide) lucide.createIcons();
-
-    try {
-        let result = null;
-        if (detectedMode === 'local') {
-            const res = await fetch(`api.php?action=export_google_sheet&start_date=${currentStartDate}&end_date=${currentEndDate}`);
-            result = await res.json();
-        } else {
-            // Send directly via Google Apps Script
-            const patients = currentRawPatients.length > 0 ? currentRawPatients : (await requestApi('patients', { limit: 1000 })).data || [];
-            result = await callGoogleAppsScript({
-                action: 'export_data',
-                data: JSON.stringify(patients)
-            });
-        }
-
-        if (result && result.status === 'success') {
-            if (statusBox) {
-                statusBox.classList.remove('bg-cyan-50', 'text-cyan-800');
-                statusBox.classList.add('bg-emerald-100', 'dark:bg-emerald-950/50', 'text-emerald-800', 'dark:text-emerald-300');
-            }
-            if (statusTitle) statusTitle.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4"></i> ส่งออกข้อมูลสำเร็จ!';
-            if (statusMsg) {
-                const sheetUrl = result.spreadsheet_url || (appConfig.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${appConfig.spreadsheetId}/edit` : null);
-                statusMsg.innerHTML = `
-                    บันทึกเข้า Google Sheet เรียบร้อยแล้วจำนวน <b>${(result.inserted_rows || result.total_rows || 0).toLocaleString()}</b> รายการ
-                    ${sheetUrl ? `<div class="mt-2"><a href="${sheetUrl}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition shadow-sm">เปิดดู Google Sheet &rarr;</a></div>` : ''}
-                `;
-            }
-        } else {
-            throw new Error(result ? result.message : 'ไม่ได้รับผลลัพธ์ที่ถูกต้องจากเซิร์ฟเวอร์');
-        }
-    } catch (err) {
-        if (statusBox) {
-            statusBox.classList.remove('bg-cyan-50', 'text-cyan-800');
-            statusBox.classList.add('bg-rose-100', 'dark:bg-rose-950/50', 'text-rose-800', 'dark:text-rose-300');
-        }
-        if (statusTitle) statusTitle.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4"></i> การส่งออกล้มเหลว';
-        if (statusMsg) {
-            statusMsg.innerHTML = `
-                <div>${err.message || err.toString()}</div>
-                <div class="mt-2 text-[11px] text-slate-500">
-                    💡 <b>คำแนะนำ:</b> สามารถใช้ <b>วิธีที่ 1: คัดลอกข้อมูลไปวาง</b> ด้านบนได้ทันที สะดวกและรวดเร็วเช่นกันครับ
-                </div>
-            `;
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-        if (window.lucide) lucide.createIcons();
-    }
-}
-
-// 21. Excel Download (Universal)
+// 20. Client-Side Excel Export
 function exportExcelClientSide() {
-    if (detectedMode === 'local') {
-        const examStatus = document.getElementById('filterExamStatus')?.value || 'all';
-        const shift = document.getElementById('filterShift')?.value || 'all';
-        const department = document.getElementById('filterDepartment')?.value || 'all';
-        const filmStatus = document.getElementById('filterFilmStatus')?.value || 'all';
-        const search = document.getElementById('patientSearchInput')?.value || '';
-
-        const params = new URLSearchParams({
-            action: 'export_excel',
-            start_date: currentStartDate,
-            end_date: currentEndDate,
-            exam_status: examStatus,
-            shift: shift,
-            department: department,
-            film_status: filmStatus,
-            search: search
-        });
-        window.location.href = `api.php?${params.toString()}`;
+    const table = document.querySelector('.tab-content:not(.hidden) table') || document.querySelector('table');
+    if (!table) {
+        alert('ไม่พบตารางข้อมูลที่จะดาวน์โหลด');
         return;
     }
 
-    // Static / Client-side HTML Excel Table Export
-    const table = document.getElementById('tabPatients').querySelector('table');
-    if (!table) return;
+    const activeTab = document.querySelector('.tab-content:not(.hidden)');
+    const tabName = activeTab ? activeTab.id.replace('tab', '') : 'Report';
 
     let html = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
         <head>
             <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-            <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>XRAY_DATA</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+            <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>XRAY_${tabName}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
         </head>
         <body>
-            <h3>รายงานข้อมูลผู้ป่วยห้อง X-Ray - ${appConfig.hospitalName}</h3>
+            <h3>รายงานข้อมูลห้อง X-Ray (${tabName}) - ${appConfig.hospitalName}</h3>
             <p>วันที่: ${currentStartDate} ถึง ${currentEndDate}</p>
             ${table.outerHTML}
         </body>
@@ -1408,13 +1409,13 @@ function exportExcelClientSide() {
     const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `XRay_Report_${currentStartDate}_to_${currentEndDate}.xls`;
+    link.download = `XRay_${tabName}_${currentStartDate}_to_${currentEndDate}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// 22. Settings Modal
+// 21. Settings Modal
 function loadStoredSettings() {
     const saved = localStorage.getItem('xray_dashboard_config');
     if (saved) {
@@ -1425,7 +1426,6 @@ function loadStoredSettings() {
         }
     }
 
-    // Update Brand Title
     const brandNameEl = document.getElementById('hospitalBrandName');
     if (brandNameEl && appConfig.hospitalName) {
         brandNameEl.textContent = appConfig.hospitalName;
@@ -1433,6 +1433,10 @@ function loadStoredSettings() {
     const directSheetBtn = document.getElementById('btnOpenSheet');
     if (directSheetBtn && appConfig.spreadsheetId) {
         directSheetBtn.href = `https://docs.google.com/spreadsheets/d/${appConfig.spreadsheetId}/edit`;
+    }
+    const toolbarSheetBtn = document.getElementById('btnToolbarSheet');
+    if (toolbarSheetBtn && appConfig.spreadsheetId) {
+        toolbarSheetBtn.href = `https://docs.google.com/spreadsheets/d/${appConfig.spreadsheetId}/edit`;
     }
 }
 
@@ -1446,7 +1450,7 @@ function openSettingsModal() {
     if (inputUrl) inputUrl.value = appConfig.webAppUrl || '';
     if (inputSheetId) inputSheetId.value = appConfig.spreadsheetId || '';
     if (inputSheetName) inputSheetName.value = appConfig.sheetName || 'XRAY_DATA';
-    if (selectMode) selectMode.value = appConfig.dataMode || 'auto';
+    if (selectMode) selectMode.value = appConfig.dataMode || 'cloud';
 }
 
 function saveSettings(e) {
@@ -1468,18 +1472,6 @@ function saveSettings(e) {
     appConfig.dataMode = selectMode ? selectMode.value : appConfig.dataMode;
 
     localStorage.setItem('xray_dashboard_config', JSON.stringify(appConfig));
-    detectedMode = null; // Reset probe
-
-    // Also persist to backend if running on PHP
-    fetch('api.php?action=save_settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            google_apps_script_url: appConfig.webAppUrl,
-            google_sheet_id: appConfig.spreadsheetId,
-            google_sheet_name: appConfig.sheetName
-        })
-    }).catch(() => {});
 
     if (feedback) {
         feedback.classList.add('bg-emerald-100', 'text-emerald-800');
@@ -1491,10 +1483,10 @@ function saveSettings(e) {
         closeModal('modalSettings');
         if (feedback) feedback.classList.add('hidden');
         loadDashboardData();
-    }, 1000);
+    }, 800);
 }
 
-// 23. Modal Open/Close Utilities
+// 22. Modal Helpers
 function openModal(id) {
     const el = document.getElementById(id);
     if (el) {
@@ -1508,7 +1500,7 @@ function closeModal(id) {
     if (el) el.classList.add('hidden');
 }
 
-// 24. High-Fidelity Demo Data Generator (For Offline / GitHub Pages Demonstration)
+// 23. Demo / Offline Mock Generator (Fallback when offline)
 function generateDemoData(action, params) {
     const isSingleDay = currentStartDate === currentEndDate;
     const mockProcedures = ['Chest (PA Upright)', 'Abdomen (KUB)', 'Skull (AP & Lat)', 'Pelvis (AP)', 'Spine L-S (AP & Lat)', 'Extremity (Hand/Foot)', 'Chest (Portable)', 'C-Spine'];
@@ -1521,8 +1513,8 @@ function generateDemoData(action, params) {
         const endD = new Date(currentEndDate);
         while (d <= endD) {
             const dateStr = d.toISOString().split('T')[0];
-            const orders = Math.floor(Math.random() * 25) + 10;
-            const requests = orders + Math.floor(Math.random() * 3);
+            const orders = Math.floor(Math.random() * 25) + 12;
+            const requests = orders + Math.floor(Math.random() * 4);
             const patients = Math.floor(orders * 0.85);
             const night = Math.floor(orders * 0.15);
             const morning = Math.floor(orders * 0.55);
@@ -1530,11 +1522,10 @@ function generateDemoData(action, params) {
             const opd = Math.floor(orders * 0.8);
             const ipd = orders - opd;
             const rev = orders * 300;
-            const read = Math.floor(orders * 0.75);
+            const read = Math.floor(orders * 0.8);
 
             list.push({
                 date: dateStr,
-                thai_date: formatThaiDate(dateStr),
                 total_orders: orders,
                 total_requests: requests,
                 unconfirmed_orders: requests - orders,
@@ -1547,7 +1538,7 @@ function generateDemoData(action, params) {
                 total_revenue: rev,
                 read_films: read,
                 unread_films: orders - read,
-                avg_wait_minutes: +(15 + Math.random() * 20).toFixed(1)
+                avg_wait_minutes: +(14 + Math.random() * 15).toFixed(1)
             });
             d.setDate(d.getDate() + 1);
         }
@@ -1562,7 +1553,7 @@ function generateDemoData(action, params) {
             const orders = Math.floor(Math.random() * 300) + 200;
             const opd = Math.floor(orders * 0.82);
             const ipd = orders - opd;
-            const read = Math.floor(orders * 0.8);
+            const read = Math.floor(orders * 0.82);
             return {
                 month_no: i + 1,
                 month_name: `${m} ${thYear}`,
@@ -1579,14 +1570,14 @@ function generateDemoData(action, params) {
     }
 
     if (action === 'patients') {
-        const total = 45;
+        const total = 40;
         const page = params.page || 1;
         const limit = params.limit || 25;
         const patients = [];
 
         for (let i = 1; i <= total; i++) {
-            const isConfirmed = i % 10 !== 0; // ~90% confirmed
-            const waitMins = Math.floor(Math.random() * 45) + 5;
+            const isConfirmed = i % 10 !== 0;
+            const waitMins = Math.floor(Math.random() * 35) + 8;
             const shiftCodes = ['night', 'morning', 'afternoon'];
             const shiftCode = shiftCodes[i % 3];
             const shiftNames = { night: 'เวรดึก (00:00 - 08:00)', morning: 'เวรเช้า (08:00 - 16:00)', afternoon: 'เวรบ่าย (16:00 - 24:00)' };
@@ -1623,30 +1614,30 @@ function generateDemoData(action, params) {
                 doctor_name: mockDoctors[i % mockDoctors.length],
                 price: 250 + (i % 3) * 100,
                 confirm_read_film: i % 3 === 0 ? 'N' : 'Y',
-                clinical_diagnosis: 'ตรวจเช็กร่างกายตามนัด หรือมีอาการไอเรื้อรัง',
+                clinical_diagnosis: 'ตรวจเช็กร่างกายตามนัด',
                 report_doctor_name: 'นพ.รังสี เชี่ยวชาญ',
-                report_text: i % 3 === 0 ? '' : 'No active pulmonary infiltration. Heart size is normal.'
+                report_text: i % 3 === 0 ? '' : 'No active pulmonary infiltration. Normal chest study.'
             });
         }
 
         const startIdx = (page - 1) * limit;
-        const pageData = patients.slice(startIdx, startIdx + limit);
         return {
             status: 'success',
             total_rows: total,
             page: page,
             limit: limit,
             total_pages: Math.ceil(total / limit),
-            data: pageData
+            data: patients.slice(startIdx, startIdx + limit)
         };
     }
 
-    // Default: 'overview'
-    const totalOrders = 38;
-    const totalRequests = 42;
+    // Default Overview
+    const totalOrders = 36;
+    const totalRequests = 40;
     const unconfirmed = totalRequests - totalOrders;
     return {
         status: 'success',
+        latest_date: currentStartDate,
         period: {
             start_date: currentStartDate,
             end_date: currentEndDate,
@@ -1658,46 +1649,45 @@ function generateDemoData(action, params) {
             total_orders: totalOrders,
             total_requests: totalRequests,
             unconfirmed_orders: unconfirmed,
-            total_patients: 34,
-            opd_patients: 28,
+            total_patients: 32,
+            opd_patients: 26,
             ipd_patients: 6,
-            opd_orders: 31,
+            opd_orders: 29,
             ipd_orders: 7,
-            avg_wait_minutes: 21.5,
-            wait_under_30_count: 32,
-            wait_under_30_rate: 84.2,
+            avg_wait_minutes: 18.5,
+            wait_under_30_count: 31,
+            wait_under_30_rate: 86.1,
             total_revenue: totalOrders * 320,
-            read_films: 30,
-            unread_films: 8,
-            read_rate: 79
+            read_films: 29,
+            unread_films: 7,
+            read_rate: 80.5
         },
         shift_breakdown: [
-            { code: 'night', name: 'เวรดึก (00:00 - 08:00 น.)', short: 'เวรดึก', order_count: 5, patient_count: 5, revenue: 1600, percent: 13.2 },
-            { code: 'morning', name: 'เวรเช้า (08:00 - 16:00 น.)', short: 'เวรเช้า', order_count: 24, patient_count: 21, revenue: 7680, percent: 63.2 },
-            { code: 'afternoon', name: 'เวรบ่าย (16:00 - 24:00 น.)', short: 'เวรบ่าย', order_count: 9, patient_count: 8, revenue: 2880, percent: 23.6 }
+            { code: 'night', name: 'เวรดึก (00:00 - 08:00 น.)', short: 'เวรดึก', order_count: 5, patient_count: 5, revenue: 1600, percent: 13.9, color: '#8B5CF6' },
+            { code: 'morning', name: 'เวรเช้า (08:00 - 16:00 น.)', short: 'เวรเช้า', order_count: 22, patient_count: 20, revenue: 7040, percent: 61.1, color: '#F59E0B' },
+            { code: 'afternoon', name: 'เวรบ่าย (16:00 - 24:00 น.)', short: 'เวรบ่าย', order_count: 9, patient_count: 7, revenue: 2880, percent: 25.0, color: '#3B82F6' }
         ],
         daily_trend: [
-            { date: currentStartDate, short_label: currentStartDate.slice(5), orders: totalOrders, requests: totalRequests, patients: 34 }
+            { date: currentStartDate, short_label: currentStartDate.slice(5), orders: totalOrders, requests: totalRequests, patients: 32 }
         ],
         top_items: [
-            { name: 'Chest (PA Upright)', count: 18, percent: 47.4 },
-            { name: 'Abdomen (KUB)', count: 8, percent: 21.1 },
-            { name: 'Extremity (Hand/Foot)', count: 5, percent: 13.2 },
-            { name: 'Skull AP & Lat', count: 4, percent: 10.5 },
-            { name: 'Pelvis (AP)', count: 3, percent: 7.8 }
+            { name: 'Chest (PA Upright)', count: 18, percent: 50.0 },
+            { name: 'Abdomen (KUB)', count: 8, percent: 22.2 },
+            { name: 'Extremity (Hand/Foot)', count: 5, percent: 13.9 },
+            { name: 'Skull AP & Lat', count: 3, percent: 8.3 },
+            { name: 'Pelvis (AP)', count: 2, percent: 5.6 }
         ],
         department_distribution: [
-            { name: 'อายุรกรรม', count: 16 },
+            { name: 'อายุรกรรม', count: 15 },
             { name: 'ศัลยกรรม', count: 9 },
             { name: 'อุบัติเหตุและฉุกเฉิน (ER)', count: 8 },
-            { name: 'กุมารเวชกรรม', count: 5 }
+            { name: 'กุมารเวชกรรม', count: 4 }
         ],
         insurance_distribution: [
-            { name: 'บัตรทอง (UC)', count: 24, color: '#F59E0B' },
-            { name: 'ข้าราชการ/เบิกตรง/อปท.', count: 6, color: '#3B82F6' },
+            { name: 'บัตรทอง (UC)', count: 22, color: '#F59E0B' },
+            { name: 'ข้าราชการ/เบิกตรง', count: 7, color: '#3B82F6' },
             { name: 'ประกันสังคม', count: 4, color: '#EC4899' },
-            { name: 'ชำระเงินเอง', count: 3, color: '#10B981' },
-            { name: 'ต่างด้าว/ปัญหาสิทธิ', count: 1, color: '#8B5CF6' }
+            { name: 'ชำระเงินเอง', count: 3, color: '#10B981' }
         ],
         hourly_workload: Array.from({ length: 24 }, (_, h) => ({
             hour: h,

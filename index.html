@@ -133,11 +133,11 @@
 
                 <!-- Export & Action Buttons -->
                 <div class="flex flex-wrap items-center gap-2">
-                    <!-- Google Sheet Sync Button -->
-                    <button onclick="openExportModal()" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium shadow-sm transition active:scale-95">
+                    <!-- Google Sheet Direct Link -->
+                    <a id="btnToolbarSheet" href="https://docs.google.com/spreadsheets/d/1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k/edit" target="_blank" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium shadow-sm transition active:scale-95">
                         <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                        <span>ส่งออก Google Sheet</span>
-                    </button>
+                        <span>เปิด Google Sheet</span>
+                    </a>
 
                     <!-- Excel/CSV Download -->
                     <button onclick="exportExcelClientSide()" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium shadow-sm transition active:scale-95">
@@ -158,13 +158,13 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">ระบุวันที่:</span>
                     <div class="relative">
-                        <input type="text" id="startDateInput" class="w-36 px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <input type="text" id="startDateInput" placeholder="YYYY-MM-DD" class="w-32 px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                     </div>
                     <span class="text-xs text-slate-400">ถึง</span>
                     <div class="relative">
-                        <input type="text" id="endDateInput" class="w-36 px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <input type="text" id="endDateInput" placeholder="YYYY-MM-DD" class="w-32 px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                     </div>
-                    <button onclick="applyCustomDate()" class="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-medium transition">
+                    <button onclick="applyCustomDate()" class="px-3.5 py-1.5 text-xs rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-medium shadow-sm transition active:scale-95">
                         ค้นหา
                     </button>
                 </div>
@@ -175,6 +175,18 @@
                     <span>ข้อมูลวันที่: <strong id="selectedDateLabel" class="text-slate-700 dark:text-slate-200">กำลังโหลด...</strong></span>
                 </div>
             </div>
+        </div>
+
+        <!-- Smart Date Notice Banner (Auto Fallback when today has 0 rows) -->
+        <div id="dateNoticeBanner" class="hidden p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs flex flex-wrap items-center justify-between gap-3 shadow-sm no-print">
+            <div class="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                <span id="dateNoticeText">ยังไม่มีรายการตรวจของวันนี้ใน Google Sheet</span>
+            </div>
+            <button id="btnSwitchToLatestDate" onclick="switchToLatestDate()" class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium shrink-0 shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i>
+                <span>ดูข้อมูลล่าสุด (<span id="latestDateLabel">-</span>)</span>
+            </button>
         </div>
 
         <!-- KPI Executive Summary Cards (5 Cards) -->
@@ -841,106 +853,7 @@
         </div>
     </div>
 
-    <!-- =================================================================== -->
-    <!-- MODAL 2: EXPORT TO GOOGLE SHEETS -->
-    <!-- =================================================================== -->
-    <div id="modalExportSheet" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-slate-900 dark:text-white">ส่งออกข้อมูลไปยัง Google Sheets</h3>
-                        <p class="text-xs text-slate-500">เลือกวิธีการส่งออกข้อมูลที่คุณสะดวกที่สุด</p>
-                    </div>
-                </div>
-                <button onclick="closeModal('modalExportSheet')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
 
-            <!-- Export Details Box -->
-            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-750 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 space-y-2 text-xs">
-                <div class="flex justify-between">
-                    <span class="text-slate-500">ช่วงวันที่ส่งออก:</span>
-                    <strong class="text-slate-800 dark:text-slate-200" id="exportPeriodLabel">-</strong>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-slate-500">จำนวนรายการที่จะส่ง:</span>
-                    <strong class="text-cyan-600 dark:text-cyan-400 font-bold" id="exportTotalRowsLabel">-</strong>
-                </div>
-            </div>
-
-            <!-- Options Stack -->
-            <div class="space-y-3 text-xs">
-                <!-- Option 1: 1-Click Copy to Clipboard for Google Sheets -->
-                <div class="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                            <i data-lucide="clipboard-copy" class="w-4 h-4 text-emerald-600"></i>
-                            วิธีที่ 1: คัดลอกข้อมูลไปวางใน Google Sheet ทันที (แนะนำ)
-                        </span>
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-200 text-emerald-800">เร็วที่สุด</span>
-                    </div>
-                    <p class="text-slate-600 dark:text-slate-400">
-                        กดคัดลอกข้อมูล แล้วเปิด Google Sheet กด <b>Ctrl + V</b> วางได้ทันที ข้อมูลลงตารางครบทุกคอลัมน์
-                    </p>
-                    <div class="flex items-center gap-2 pt-1">
-                        <button id="btnCopyForSheet" onclick="copyForGoogleSheet()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1.5 shadow-sm transition active:scale-95">
-                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                            <span>คัดลอกข้อมูลทั้งหมด</span>
-                        </button>
-                        <a id="btnOpenSheetFromExport" href="https://docs.google.com/spreadsheets/d/1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k/edit" target="_blank" class="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 flex items-center gap-1.5 transition">
-                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                            <span>เปิด Google Sheet</span>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Option 2: Automatic Sync via Apps Script Web App -->
-                <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <i data-lucide="refresh-cw" class="w-4 h-4 text-cyan-600"></i>
-                            วิธีที่ 2: บันทึกผ่าน Google Apps Script อัตโนมัติ
-                        </span>
-                        <span id="exportUrlStatusBadge" class="px-2 py-0.5 rounded-full text-[10px] font-semibold">-</span>
-                    </div>
-                    <p class="text-slate-500">
-                        ส่งข้อมูลตรงเข้า Google Sheet ผ่าน Web App URL (ต้องการการติดตั้ง Apps Script ครั้งแรก)
-                    </p>
-                    <div class="flex items-center justify-between pt-1">
-                        <button onclick="openSettingsModal()" class="text-xs text-cyan-600 hover:underline flex items-center gap-1">
-                            <i data-lucide="settings" class="w-3.5 h-3.5"></i>
-                            ตั้งค่า Web App URL
-                        </button>
-                        <button id="btnExecuteExport" onclick="executeGoogleSheetExport()" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-medium flex items-center gap-1.5 shadow-sm transition active:scale-95">
-                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                            <span>เริ่มส่งออก</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Live Status Feedback -->
-            <div id="exportStatusBox" class="hidden p-3.5 rounded-xl text-xs space-y-1">
-                <div class="font-bold flex items-center gap-1.5" id="exportStatusTitle">
-                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
-                    กำลังส่งข้อมูล...
-                </div>
-                <div class="text-slate-600 dark:text-slate-300" id="exportStatusMsg"></div>
-            </div>
-
-            <!-- Close Button -->
-            <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-end">
-                <button onclick="closeModal('modalExportSheet')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium">
-                    ปิด
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- =================================================================== -->
     <!-- MODAL 3: SETTINGS & GOOGLE APPS SCRIPT SETUP -->
@@ -984,10 +897,8 @@
                         โหมดแหล่งข้อมูล (Data Source Mode)
                     </label>
                     <select id="settingDataMode" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                        <option value="auto">🌐 อัตโนมัติ (Auto-Detect: ใช้ API ในเครื่องก่อน ถ้าไม่มีใช้ Google Sheet)</option>
-                        <option value="cloud">☁️ Google Sheets Web App (สำหรับ GitHub Pages)</option>
-                        <option value="local">💻 เชื่อมต่อฐานข้อมูล HOSxP โดยตรง (api.php)</option>
-                        <option value="demo">🎮 โหมดจำลองข้อมูล (Demo / Offline Mode)</option>
+                        <option value="cloud" selected>☁️ Google Sheets Web App (เชื่อมต่อ Google Sheet)</option>
+                        <option value="demo">🎮 โหมดจำลองข้อมูล (Demo / ออฟไลน์)</option>
                     </select>
                 </div>
 
