@@ -8,7 +8,7 @@
 
 // 1. Default Configuration
 const DEFAULT_CONFIG = {
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbyWvsD8-nEP5srOxtyRXr47Tc7Lisiu85efy0huokiNxmtl_0XO-akfiahMipSVBQm2/exec',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbwa1tWNjg8wmE6lHaIQVmH1iN1FfsuH5lHn0yzy2nptNJ-WVEVefnfwYCqAf7iubyKC/exec',
     spreadsheetId: '1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k',
     sheetName: 'XRAY_DATA',
     hospitalName: 'โรงพยาบาลไทรโยค',
@@ -1165,7 +1165,7 @@ function renderFilteredPatients(list, page, limit, filters) {
 
         // Exam status filter
         if (filters.examStatus === 'confirmed' && p.confirm !== 'Y') return false;
-        if (filters.examStatus === 'unconfirmed' && p.confirm === 'Y') return false;
+        if ((filters.examStatus === 'not_confirmed' || filters.examStatus === 'unconfirmed') && p.confirm === 'Y') return false;
 
         // Shift filter
         if (filters.shift !== 'all' && p.shift_code !== filters.shift) return false;
