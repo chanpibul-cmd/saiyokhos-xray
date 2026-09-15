@@ -8,7 +8,7 @@
 
 // 1. Default Configuration
 const DEFAULT_CONFIG = {
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbwa1tWNjg8wmE6lHaIQVmH1iN1FfsuH5lHn0yzy2nptNJ-WVEVefnfwYCqAf7iubyKC/exec',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbw0n8hXSJDuvV5Rozi_jp4UT0ArLz0FlGHZnMMszlcrcTUCocUd1zHqeAezRNKaI4Y/exec',
     spreadsheetId: '1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k',
     sheetName: 'XRAY_DATA',
     hospitalName: 'โรงพยาบาลไทรโยค',
