@@ -639,12 +639,11 @@
                     </div>
 
                     <!-- Filter Dropdowns -->
-                    <div class="flex flex-wrap items-center gap-2">
                         <!-- Exam Status Filter (Confirm = Y / N) -->
                         <select id="filterExamStatus" onchange="loadPatients(1)" class="px-3 py-2 text-xs rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            <option value="all">สถานะตรวจ: ทั้งหมด</option>
-                            <option value="confirmed">✅ เฉพาะตรวจแล้ว (Confirm = Y)</option>
-                            <option value="not_confirmed">❌ เฉพาะไม่ได้ตรวจ / ยกเลิก</option>
+                            <option value="all">สถานะ confirm: ทั้งหมด</option>
+                            <option value="confirmed">✅ ตรวจแล้ว (Confirm = Y)</option>
+                            <option value="not_confirmed">❌ ไม่ได้ตรวจ (Confirm = N)</option>
                         </select>
 
                         <!-- Shift Filter -->
@@ -687,7 +686,7 @@
                                 <th scope="col" class="px-3 py-3">สั่งตรวจ (Request)</th>
                                 <th scope="col" class="px-3 py-3">ตรวจจริง (Examined)</th>
                                 <th scope="col" class="px-3 py-3 text-center">เวลารอคอย</th>
-                                <th scope="col" class="px-3 py-3 text-center">สถานะตรวจ</th>
+                                <th scope="col" class="px-3 py-3 text-center">confirm (สถานะตรวจ)</th>
                                 <th scope="col" class="px-3 py-3 text-center">เวรตรวจ</th>
                                 <th scope="col" class="px-3 py-3">HN</th>
                                 <th scope="col" class="px-3 py-3">ชื่อ-นามสกุล</th>

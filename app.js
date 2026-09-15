@@ -8,7 +8,7 @@
 
 // 1. Default Configuration
 const DEFAULT_CONFIG = {
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbw0n8hXSJDuvV5Rozi_jp4UT0ArLz0FlGHZnMMszlcrcTUCocUd1zHqeAezRNKaI4Y/exec',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbxWbWLCMexQvD1XU2dAh26XUJb0p_pJqECsw0-abRiA35WpYvtZUFSNX_Ro1A-f4m2T/exec',
     spreadsheetId: '1gE43E3aMPnqHNivISa3xC0z48DJGZi3Qm2uLhdh-I8k',
     sheetName: 'XRAY_DATA',
     hospitalName: 'โรงพยาบาลไทรโยค',
@@ -86,9 +86,9 @@ function getWaitBadge(waitMinutes) {
 
 function getConfirmBadge(confirm) {
     if (confirm === 'Y' || confirm === 'ตรวจสำเร็จ' || confirm === 'ตรวจแล้ว') {
-        return { label: 'ตรวจสำเร็จ', badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' };
+        return { label: 'ตรวจแล้ว (Y)', short: 'Y', badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' };
     } else {
-        return { label: 'ไม่ได้ตรวจ', badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300' };
+        return { label: 'ไม่ได้ตรวจ (N)', short: 'N', badge: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300' };
     }
 }
 
