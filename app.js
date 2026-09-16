@@ -8,7 +8,7 @@
 
 // 1. Default Configuration
 const DEFAULT_CONFIG = {
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbxu36APVgFWkGl4p0uUijHscMKWMnH__IcJEvwZcsNUxiN-xYTLHiLhxQCo19wsi7fS/exec',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbwJBLF-j4XV3kD3w8jVWAqmfYl9A-Ffes0ZfHDVe1ywCqMtuCKhILhdmUNXK2Riym27/exec',
     sheetName: 'XRAY_DATA',
     hospitalName: 'โรงพยาบาลไทรโยค',
     dataMode: 'cloud' // 'cloud' (Google Sheet), 'demo' (Offline Mock)
