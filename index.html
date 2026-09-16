@@ -87,7 +87,7 @@
                     </div>
 
                     <!-- Portable Dashboard Switch -->
-                    <a href="portable.html" title="เปิดแดชบอร์ดเฉพาะงาน X-Ray Portable (เตียงผู้ป่วย/วอร์ด)" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-sm transition font-medium text-xs">
+                    <a id="btnNavPortable" href="portable.html" title="เปิดแดชบอร์ดเฉพาะงาน X-Ray Portable (เตียงผู้ป่วย/วอร์ด)" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-sm transition font-medium text-xs">
                         <i data-lucide="ambulance" class="w-4 h-4"></i>
                         <span class="hidden sm:inline">เฉพาะงาน</span>
                         <span>PORTABLE</span>
@@ -190,10 +190,16 @@
                 <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
                 <span id="dateNoticeText">ยังไม่มีรายการตรวจของวันนี้ใน Google Sheet</span>
             </div>
-            <button id="btnSwitchToLatestDate" onclick="switchToLatestDate()" class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium shrink-0 shadow-sm transition active:scale-95 flex items-center gap-1.5">
-                <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i>
-                <span>ดูข้อมูลล่าสุด (<span id="latestDateLabel">-</span>)</span>
-            </button>
+            <div class="flex items-center gap-2">
+                <button id="btnSwitchToLatestDate" onclick="switchToLatestDate()" class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium shrink-0 shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                    <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i>
+                    <span>ดูข้อมูลล่าสุด (<span id="latestDateLabel">-</span>)</span>
+                </button>
+                <button id="btnSwitchToThisMonth" onclick="setPeriod('this_month')" class="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-medium shrink-0 shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                    <span>ดูทั้งเดือนนี้</span>
+                </button>
+            </div>
         </div>
 
         <!-- KPI Executive Summary Cards (5 Cards) -->

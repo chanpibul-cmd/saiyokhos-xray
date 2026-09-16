@@ -16,9 +16,12 @@ const DEFAULT_CONFIG = {
 
 // 2. Global State Management
 let appConfig = Object.assign({}, DEFAULT_CONFIG);
+let currentActivePeriod = 'today';
+let hasAutoFallenBack = false;
 let currentStartDate = getTodayStr();
 let currentEndDate = getTodayStr();
 let latestDateAvailable = null;
+let cachedMonthlyData = {};
 
 // In-Memory Data Store (Zero-latency instant rendering)
 let cachedOverviewData = null;
@@ -118,11 +121,14 @@ function getFilmBadgeInfo(status) {
 
 // 4. Initialization
 document.addEventListener('DOMContentLoaded', () => {
+    initUrlParams();
     loadStoredSettings();
     if (window.lucide) lucide.createIcons();
     initClock();
     initDatePickers();
     checkTheme();
+    updatePeriodButtonStyles();
+    updateNavLinks();
 
     // Auto-fetch data from Google Sheet
     loadDashboardData();
@@ -138,6 +144,85 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// URL Parameter Handling & Navigation Switcher
+function initUrlParams() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pStart = urlParams.get('start_date');
+        const pEnd = urlParams.get('end_date');
+        const pPeriod = urlParams.get('period');
+
+        if (pPeriod && ['today', 'yesterday', '7days', 'this_month', 'last_month', 'this_year'].includes(pPeriod)) {
+            currentActivePeriod = pPeriod;
+            computeDatesForPeriod(pPeriod);
+        } else if (pStart && pEnd) {
+            currentStartDate = pStart;
+            currentEndDate = pEnd;
+            currentActivePeriod = 'custom';
+        }
+    } catch (e) {
+        console.warn('Could not parse URL params:', e);
+    }
+}
+
+function updateNavLinks() {
+    const btn = document.getElementById('btnNavPortable');
+    if (!btn) return;
+    const q = new URLSearchParams();
+    if (currentStartDate) q.set('start_date', currentStartDate);
+    if (currentEndDate) q.set('end_date', currentEndDate);
+    if (currentActivePeriod) q.set('period', currentActivePeriod);
+    btn.href = 'portable.html?' + q.toString();
+}
+
+function updatePeriodButtonStyles() {
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.remove('bg-cyan-600', 'text-white', 'shadow-sm', 'active-period');
+        btn.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
+    });
+
+    if (currentActivePeriod && currentActivePeriod !== 'custom' && currentActivePeriod !== 'latest') {
+        const activeBtn = document.querySelector(`[data-period="${currentActivePeriod}"]`);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
+            activeBtn.classList.add('bg-cyan-600', 'text-white', 'shadow-sm', 'active-period');
+        }
+    }
+}
+
+function computeDatesForPeriod(type) {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (type === 'today') {
+        // start and end are today
+    } else if (type === 'yesterday') {
+        start.setDate(now.getDate() - 1);
+        end.setDate(now.getDate() - 1);
+    } else if (type === '7days') {
+        start.setDate(now.getDate() - 6);
+    } else if (type === 'this_month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (type === 'last_month') {
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (type === 'this_year') {
+        start = new Date(now.getFullYear(), 0, 1);
+        end = new Date(now.getFullYear(), 11, 31);
+    }
+
+    const formatDate = d => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    currentStartDate = formatDate(start);
+    currentEndDate = formatDate(end);
+}
 
 // 5. Clock
 function initClock() {
@@ -198,53 +283,22 @@ function toggleDarkMode() {
 }
 
 // 8. Period Selection Toolbar
-function setPeriod(type) {
-    document.querySelectorAll('.period-btn').forEach(btn => {
-        btn.classList.remove('bg-cyan-600', 'text-white', 'shadow-sm', 'active-period');
-        btn.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
-    });
-
-    const activeBtn = document.querySelector(`[data-period="${type}"]`);
-    if (activeBtn) {
-        activeBtn.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
-        activeBtn.classList.add('bg-cyan-600', 'text-white', 'shadow-sm', 'active-period');
-    }
-
-    const now = new Date();
-    let start = new Date();
-    let end = new Date();
-
-    if (type === 'today') {
-        // start and end are today
-    } else if (type === 'yesterday') {
-        start.setDate(now.getDate() - 1);
-        end.setDate(now.getDate() - 1);
-    } else if (type === '7days') {
-        start.setDate(now.getDate() - 6);
-    } else if (type === 'this_month') {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else if (type === 'last_month') {
-        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        end = new Date(now.getFullYear(), now.getMonth(), 0);
-    } else if (type === 'this_year') {
-        start = new Date(now.getFullYear(), 0, 1);
-        end = new Date(now.getFullYear(), 11, 31);
-    }
-
-    const formatDate = d => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    };
-
-    currentStartDate = formatDate(start);
-    currentEndDate = formatDate(end);
+function setPeriod(type, triggerLoad = true) {
+    currentActivePeriod = type;
+    computeDatesForPeriod(type);
+    updatePeriodButtonStyles();
 
     if (fpStart) fpStart.setDate(currentStartDate);
     if (fpEnd) fpEnd.setDate(currentEndDate);
 
-    loadDashboardData();
+    updateNavLinks();
+    const banner = document.getElementById('dateNoticeBanner');
+    if (banner) banner.classList.add('hidden');
+
+    if (triggerLoad) {
+        cachedPatientsList = [];
+        loadDashboardData();
+    }
 }
 
 function applyCustomDate() {
@@ -252,6 +306,10 @@ function applyCustomDate() {
     const e = document.getElementById('endDateInput');
     if (s && s.value) currentStartDate = s.value;
     if (e && e.value) currentEndDate = e.value;
+    currentActivePeriod = 'custom';
+    updatePeriodButtonStyles();
+    updateNavLinks();
+    cachedPatientsList = [];
     loadDashboardData();
 }
 
@@ -259,10 +317,14 @@ function switchToLatestDate() {
     if (!latestDateAvailable) return;
     currentStartDate = latestDateAvailable;
     currentEndDate = latestDateAvailable;
+    currentActivePeriod = 'latest';
+    updatePeriodButtonStyles();
     if (fpStart) fpStart.setDate(currentStartDate);
     if (fpEnd) fpEnd.setDate(currentEndDate);
+    updateNavLinks();
     const banner = document.getElementById('dateNoticeBanner');
     if (banner) banner.classList.add('hidden');
+    cachedPatientsList = [];
     loadDashboardData();
 }
 
@@ -295,8 +357,13 @@ function switchTab(tabId) {
 // 10. Universal Data Requester (Google Apps Script Web App / Demo)
 async function requestApi(action, params = {}) {
     params.action = action;
-    params.start_date = params.start_date || currentStartDate;
-    params.end_date = params.end_date || currentEndDate;
+    if (action === 'monthly') {
+        delete params.start_date;
+        delete params.end_date;
+    } else {
+        params.start_date = params.start_date || currentStartDate;
+        params.end_date = params.end_date || currentEndDate;
+    }
 
     if (appConfig.dataMode === 'demo') {
         return generateDemoData(action, params);
@@ -382,6 +449,8 @@ async function loadDashboardData() {
     if (isFetching) return;
     isFetching = true;
 
+    updateNavLinks();
+
     const icon = document.getElementById('iconRefresh');
     if (icon) icon.classList.add('animate-spin');
 
@@ -395,6 +464,32 @@ async function loadDashboardData() {
         });
 
         if (data && data.status === 'success') {
+            const totalOrders = (data.kpi && data.kpi.total_orders) ? data.kpi.total_orders : 0;
+            const totalRequests = (data.kpi && data.kpi.total_requests) ? data.kpi.total_requests : 0;
+
+            // Auto-fallback: If today has 0 records and we haven't auto-fallen back yet, switch to latest date
+            if (!hasAutoFallenBack && currentActivePeriod === 'today' && totalOrders === 0 && totalRequests === 0 && data.latest_date) {
+                hasAutoFallenBack = true;
+                latestDateAvailable = data.latest_date;
+                currentStartDate = data.latest_date;
+                currentEndDate = data.latest_date;
+                currentActivePeriod = 'latest';
+                updatePeriodButtonStyles();
+                if (fpStart) fpStart.setDate(currentStartDate);
+                if (fpEnd) fpEnd.setDate(currentEndDate);
+                updateNavLinks();
+
+                const banner = document.getElementById('dateNoticeBanner');
+                if (banner) {
+                    banner.classList.remove('hidden');
+                    safeSetText('dateNoticeText', `วันที่ ${formatThaiDate(getTodayStr())} ยังไม่มีรายการตรวจใน Google Sheet — ระบบสลับมาแสดงข้อมูลล่าสุด (${formatThaiDate(latestDateAvailable)}) อัตโนมัติ`);
+                    safeSetText('latestDateLabel', formatThaiDate(latestDateAvailable));
+                }
+
+                isFetching = false;
+                return await loadDashboardData();
+            }
+
             cachedOverviewData = data;
 
             // Track latest date
@@ -408,11 +503,15 @@ async function loadDashboardData() {
                 if (!latestDateAvailable) {
                     latestDateAvailable = cachedDailyTrend[cachedDailyTrend.length - 1].date;
                 }
+            } else {
+                cachedDailyTrend = [];
             }
 
             // Cache Patients dataset
             if (data.data && Array.isArray(data.data) && data.data.length > 0) {
                 cachedPatientsList = data.data;
+            } else {
+                cachedPatientsList = [];
             }
 
             // Render Executive Components
@@ -455,6 +554,10 @@ function handleDateFallbackBanner(data) {
     if (totalOrders === 0 && totalRequests === 0 && latestDateAvailable && latestDateAvailable !== currentStartDate) {
         banner.classList.remove('hidden');
         safeSetText('dateNoticeText', `ยังไม่มีรายการตรวจของวันที่ ${formatThaiDate(currentStartDate)} ใน Google Sheet`);
+        safeSetText('latestDateLabel', formatThaiDate(latestDateAvailable));
+    } else if (hasAutoFallenBack && currentActivePeriod === 'latest') {
+        banner.classList.remove('hidden');
+        safeSetText('dateNoticeText', `วันที่ ${formatThaiDate(getTodayStr())} ยังไม่มีรายการตรวจใน Google Sheet — กำลังแสดงข้อมูลล่าสุด (${formatThaiDate(currentStartDate)})`);
         safeSetText('latestDateLabel', formatThaiDate(latestDateAvailable));
     } else {
         banner.classList.add('hidden');
@@ -951,8 +1054,12 @@ function renderDailyTable(rows) {
 function viewDateInPatients(dateStr) {
     currentStartDate = dateStr;
     currentEndDate = dateStr;
+    currentActivePeriod = 'custom';
+    updatePeriodButtonStyles();
     if (fpStart) fpStart.setDate(dateStr);
     if (fpEnd) fpEnd.setDate(dateStr);
+    updateNavLinks();
+    cachedPatientsList = [];
     switchTab('tabPatients');
 }
 
@@ -962,20 +1069,20 @@ async function loadMonthlyData() {
     if (!tbody) return;
 
     const yearSelect = document.getElementById('monthlyYearSelect');
-    const selectedYear = yearSelect ? yearSelect.value : new Date().getFullYear();
+    const selectedYear = yearSelect ? yearSelect.value : String(new Date().getFullYear());
 
-    // In-Memory Monthly Synthesis: Calculate from cachedDailyTrend
-    if (cachedDailyTrend.length > 0) {
-        const synthesizedMonths = synthesizeMonthlyFromDaily(cachedDailyTrend, selectedYear);
-        renderMonthlyTable(synthesizedMonths, selectedYear);
+    // If cached in memory, render immediately
+    if (cachedMonthlyData[selectedYear]) {
+        renderMonthlyTable(cachedMonthlyData[selectedYear], selectedYear);
         return;
     }
 
-    tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูลสรุปรายเดือน...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">กำลังโหลดข้อมูลสรุปรายเดือนจาก Google Sheet...</td></tr>';
 
     try {
         const data = await requestApi('monthly', { year: selectedYear });
         if (data && data.status === 'success' && Array.isArray(data.data)) {
+            cachedMonthlyData[selectedYear] = data.data;
             renderMonthlyTable(data.data, selectedYear);
         } else {
             const synthesized = synthesizeMonthlyFromDaily(cachedDailyTrend, selectedYear);
